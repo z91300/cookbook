@@ -71,6 +71,9 @@ def main() -> None:
 
     run_env = {**os.environ, "COOKBOOK_IMAGE": image,
                "COOKBOOK_WEB_PORT": str(port), "COOKBOOK_API_PORT": "18080"}
+    # DB_* 变量由调用方环境透传（脚本本身不设默认值），如：
+    #   DB_TYPE=postgres DB_HOST=… DB_PORT=… DB_USER=… DB_PASSWORD=… DB_NAME=… \
+    #     python3 scripts/ci_selftest.py cookbook:latest
     log(f"起隔离栈 {PROJECT}（宿主机 {port} → 容器 3000）")
 
     try:

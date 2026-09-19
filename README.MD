@@ -96,17 +96,13 @@ cd web && pnpm build   # 前端产物输出到 web/.output/
 
 ## 配置与安全
 
-数据库等真实凭据**不入 git**（`.gitignore` 已覆盖 `config.yaml` / `config.prod.yaml` / `hack/config.yaml`）。首次使用：
+本地开发用配置文件（凭据不入 git）：`config.yaml` / `hack/config.yaml`（复制 `*.example.yaml` 填入真实链接）。
 
-```bash
-cp config.example.yaml config.yaml        # 填入本地数据库链接
-cp config.prod.example.yaml config.prod.yaml  # 填入生产数据库链接（构建镜像需要）
-cp hack/config.example.yaml hack/config.yaml  # 填入 gen dao 链接
-```
+**Docker 部署不需要配置文件**：运行时环境变量注入数据库（见下方「Docker 部署」），镜像内无任何凭据。
 
 ## CI/CD（GitHub Actions）
 
-`.github/workflows/build.yml`：push 到 `main` / 打 `v*` 标签 / 手动触发时自动构建单镜像（前端 SSR + 后端 API）并推送 GHCR（`ghcr.io/<owner>/cookbook`，tag：`latest` + short-sha，标签推送另有版本 tag）。
+`.github/workflows/build.yml`：push 到 `main` / 打 `v*` 标签 / 手动触发时自动构建单镜像（前端 SSR + 后端 API）并推送 GHCR（`ghcr.io/<owner>/cookbook`，tag：`latest` + short-sha，标签推送另有版本 tag）。CI 不需要任何 Secret（数据库凭据运行时注入）。
 
 **推送前人工本地验证**（CI 不跑自测，约定）：
 
@@ -115,20 +111,28 @@ docker build -t cookbook:latest .
 uv run python scripts/ci_selftest.py cookbook:latest   # 隔离栈自测：/api/tags、/api/recipes、SSR 首页
 ```
 
-仓库需配置 1 个 Secret（Settings → Secrets and variables → Actions）：
-
-| Secret | 说明 |
-| --- | --- |
-| `PROD_DB_LINK` | 生产数据库链接，GoFrame pgsql 格式：`pgsql:<user>:<password>@tcp(<host>:<port>)/<dbname>` |
-
-CI 构建时由该 Secret 生成 `config.prod.yaml`（Dockerfile COPY 为容器内 `config.yaml`），真实凭据不落仓库。
-
 ## Docker 部署
 
-- 一键构建/自测/推送（本地）：`uv run python scripts/docker_build_push.py -v <版本> [-r <registry前缀>]`
-  （需本机 Docker 引擎健康；构建前确保 `config.prod.yaml` 已填好真实链接）
-- CI 产物直接可用：`docker compose pull`（设 `COOKBOOK_IMAGE=ghcr.io/<owner>/cookbook:latest`）后 `docker compose up -d --wait`。
-- 编排：根目录 `docker-compose.yml`，单容器暴露 `COOKBOOK_WEB_PORT`（默认 8080 → 3000，前端 SSR）与 `COOKBOOK_API_PORT`（默认 8000，后端 API），变量全部带默认值、不用 `.env`。
+数据库通过环境变量注入（装配逻辑 `internal/cmd/dbenv.go`），无需挂载配置文件：
+
+| 变量 | 说明 | 默认 |
+| --- | --- | --- |
+| `DB_TYPE` | `postgres`（别名 `pg`）或 `sqlite` | `postgres` |
+| `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASSWORD` / `DB_NAME` | postgres 连接参数 | 5432 / root / cookbook |
+| `DB_DATA_PATH` | sqlite 库文件路径（`DB_TYPE=sqlite` 时） | `/data/cookbook.db`（compose 已挂卷持久化） |
+
+```bash
+# PostgreSQL
+DB_TYPE=postgres DB_HOST=<host> DB_PORT=25432 DB_USER=root DB_PASSWORD=<pw> DB_NAME=cookbook \
+  docker compose up -d --wait
+
+# SQLite（本地单机）
+DB_TYPE=sqlite docker compose up -d --wait
+```
+
+- 一键构建（本地）：`uv run python scripts/docker_build_push.py -v <版本> [-r <registry前缀>]`（需本机 Docker 引擎健康）
+- CI 产物直接可用：`docker compose pull` 后按上面设 DB_* 环境变量 `docker compose up -d --wait`。
+- 编排：根目录 `docker-compose.yml`，默认镜像 `ghcr.io/z91300/cookbook:latest`，单容器暴露 `COOKBOOK_WEB_PORT`（默认 8080 → 3000，前端 SSR）与 `COOKBOOK_API_PORT`（默认 8000，后端 API），变量全部带默认值、不用 `.env`。
 
 ## 模板内容说明
 

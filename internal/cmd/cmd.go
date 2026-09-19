@@ -27,6 +27,8 @@ var (
 		Usage: "main",
 		Brief: "start http server",
 		Func: func(ctx context.Context, parser *gcmd.Parser) (err error) {
+			// 容器部署：DB_* 环境变量存在则覆写数据库配置（优先于 config.yaml）
+			applyDBEnv()
 			s := g.Server()
 			s.Group("/", func(group *ghttp.RouterGroup) {
 				// 多值查询参数归一（?k=a&k=b → ?k[]=a&k[]=b）须在参数绑定前执行

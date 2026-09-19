@@ -85,9 +85,11 @@ type GetReq struct {
   `config.example.yaml` / `hack/config.example.yaml` 模板）。换库方式：改 `link`；
   **注意**：`GF_GCFG_DATABASE_DEFAULT_LINK` 这类变量对 GoFrame 无效（实测被忽略，仅 `GF_GCFG_FILE` /
   `GF_GCFG_PATH` 有效），不要指望用环境变量直接覆盖配置项；配置内 `${ENV|默认}` 占位符在本版本同样不生效。
-- **生产部署**：外部 PostgreSQL（链接在 `config.prod.yaml`，由 Dockerfile 构建时 COPY 为镜像内
-  `config.yaml`；真实文件不入 git，入库 `config.prod.example.yaml` 模板，CI 从 GitHub Secret 注入）。
-  换库方式：挂载自定义配置覆盖镜像内 `config.yaml`，或设 `GF_GCFG_FILE` 指向挂载进去的配置。
+- **生产部署**：数据库运行时环境变量注入（`internal/cmd/dbenv.go`：`DB_TYPE` postgres|sqlite +
+  `DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_NAME`，sqlite 用 `DB_DATA_PATH`），镜像内无配置文件
+  无凭据；本地开发仍走根 `config.yaml`。换库方式：改 compose 环境变量。
+  **注意**：`GF_GCFG_DATABASE_DEFAULT_LINK` 这类变量对 GoFrame 无效（实测被忽略），必须走
+  dbenv 装配或配置文件，见 AGENTS.md「Docker 部署 / CI」节。
 - 写库前先更新 `manifest/init.sql` 再整体执行（脚本幂等：`CREATE TABLE IF NOT EXISTS` +
   `ON CONFLICT DO NOTHING`；生产 PG 与本地均连 PostgreSQL，同一脚本维护）。
   一次性迁移命令存档：`cmd/migrate_sqlite_to_pg`（历史 SQLite → PG，已执行过）。
@@ -127,11 +129,10 @@ type GetReq struct {
 ## Docker 部署 / CI
 
 - GitHub Actions（`.github/workflows/build.yml`）：push main / 打 v* 标签时自动构建镜像
-  → 推送 GHCR。需仓库 Secret `PROD_DB_LINK`（生产库链接，CI 构建时生成
-  config.prod.yaml，凭据不落仓库）。推送前人工本地验证：起隔离栈跑
-  `python scripts/ci_selftest.py cookbook:latest`（CI 不跑自测）。
+  → 推送 GHCR。CI 不需要 Secret（数据库凭据运行时经 DB_* 环境变量注入，镜像内无配置）。
+  推送前人工本地验证：起隔离栈跑 `python scripts/ci_selftest.py cookbook:latest`（CI 不跑自测）。
 - 一键构建/自测/推送（本地）：`uv run python scripts/docker_build_push.py -v <版本> [-r <registry前缀>]`
-  （本机无 python 时用 uv；需 Docker 引擎健康，构建前填好 config.prod.yaml）。
+  （本机无 python 时用 uv；需 Docker 引擎健康；自测需先设好 DB_* 环境变量）。
   默认流程 = 构建单个镜像 `cookbook`（容器内同时跑 Nuxt SSR 与 GoFrame 后端，暴露 3000/8000
   两端口）→ 起隔离测试栈跑 HTTP 自测（`/api/tags`、`/api/recipes`、首页 SSR）→ 按版本
   tag + latest 推送。推送需 `-r` 且先 `docker login`。

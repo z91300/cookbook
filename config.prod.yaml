@@ -1,0 +1,13 @@
+# 生产镜像内置配置（外部 PostgreSQL，本地开发用根 config.yaml 的 SQLite）
+# 构建时由 Dockerfile COPY 为容器内 config.yaml（见 Dockerfile 与 docker-compose.yml 注释）。
+# 注意：GF_GCFG_DATABASE_DEFAULT_LINK 这类环境变量对 GoFrame 无效，换库须替换本文件
+# 并挂载或配合 GF_GCFG_FILE 指向，见 AGENTS.md「Docker 部署」节。
+
+server:
+  address: ":8000"
+  openapiPath: "/api.json"
+  swaggerPath: "/swagger"
+
+database:
+  default:
+    link: "pgsql:root:zxs123123!@tcp(38.95.74.121:25432)/cookbook"

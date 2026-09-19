@@ -50,21 +50,6 @@ jobs:
           echo "IMAGE=${IMAGE}" >> "$GITHUB_OUTPUT"
           echo "TAGS=${TAGS}" >> "$GITHUB_OUTPUT"
 
-      # 真实生产配置不入 git：CI 从 Secret 生成 config.prod.yaml（Dockerfile COPY 为容器内 config.yaml）
-      - name: Write prod config from secret
-        run: |
-          mkdir -p config
-          cat > config.prod.yaml <<'EOF'
-          server:
-            address: ":8000"
-            openapiPath: "/api.json"
-            swaggerPath: "/swagger"
-
-          database:
-            default:
-              link: "${{ secrets.PROD_DB_LINK }}"
-          EOF
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 

@@ -65,7 +65,8 @@ WORKDIR /app
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \
     PORT=3000 \
-    NITRO_PORT=3000
+    NITRO_PORT=3000 \
+    API_PORT=8000
 
 # ca-certificates：连接启用 TLS 的 PostgreSQL 时需要（无则 PG 可能握手失败）
 RUN apk add --no-cache ca-certificates

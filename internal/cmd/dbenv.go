@@ -1,10 +1,17 @@
-// 数据库环境变量装配：容器部署时通过 DB_TYPE / DB_HOST / DB_PORT / DB_USER /
-// DB_PASSWORD / DB_NAME 直接注入数据库配置，无需挂载配置文件。
-//   - DB_TYPE=postgres（默认）/ postgres 别名 pgsql；DB_TYPE=sqlite 时仅用 DB_PATH
-//     （SQLite 文件路径，默认 /data/cookbook.db），其余变量忽略。
-//   - 变量齐全时优先级高于镜像内 config.yaml（gdb.SetConfigGroup 先注册，
-//     gins 的文件配置装配检测到已配置即跳过）。
-//   - 未设 DB_HOST（sqlite 为 DB_DATA_PATH）时不动任何配置，回落 config.yaml。
+// 容器部署环境变量装配（无配置文件启动）：
+//
+// 数据库（internal/cmd/dbenv.go 原职责）：
+//   DB_TYPE      postgres（默认，别名 pg/pgsql）| sqlite
+//   postgres 模式：DB_HOST / DB_PORT(默认5432) / DB_USER(默认root) / DB_PASSWORD / DB_NAME(默认cookbook)
+//   sqlite   模式：DB_DATA_PATH（默认 /data/cookbook.db）
+//
+// HTTP 服务（镜像内无 config.yaml，server 段必须由环境变量兜底，否则 GoFrame
+//   回退默认 :0 随机端口且关闭 OpenAPI）：
+//   API_PORT     后端监听端口（默认 8000）
+//
+// 变量齐全时优先级高于任何 config.yaml（gdb/gcfg 先注册，文件配置装配检测到已
+// 配置即跳过）。未设 DB_HOST 时数据库回落 config.yaml；API_PORT 恒生效（容器
+// 环境本就该由环境变量决定端口）。
 package cmd
 
 import (
@@ -12,10 +19,19 @@ import (
 	"strings"
 
 	"github.com/gogf/gf/v2/database/gdb"
+	"github.com/gogf/gf/v2/frame/g"
 )
 
-// applyDBEnv 在 HTTP 服务启动前调用：环境变量存在则覆写数据库配置。
+// applyDBEnv 在 HTTP 服务启动前调用。
 func applyDBEnv() {
+	// server 段：容器内无配置文件，端口必须显式给（镜像 Env 已设 PORT=3000 给前端，
+	// 后端用 API_PORT 区分，避免复用同一变量）。
+	if port := strings.TrimSpace(os.Getenv("API_PORT")); port != "" {
+		g.Server().SetAddr(":" + port)
+		g.Server().SetOpenApiPath("/api.json")
+		g.Server().SetSwaggerPath("/swagger")
+	}
+
 	dbType := strings.ToLower(envOr("DB_TYPE", "postgres"))
 	if dbType == "pg" || dbType == "postgres" {
 		dbType = "pgsql"

@@ -6,7 +6,7 @@ GoFrame v2（Go）后端 + Nuxt 4（@nuxt/ui）前端的全栈单仓初始化模
 
 | 层 | 技术 | 说明 |
 | --- | --- | --- |
-| 后端 | Go 1.23+ / GoFrame v2.10 | HTTP 服务、OpenAPI（`/api.json`）与 Swagger（`/swagger`）自动生成 |
+| 后端 | Go 1.26 / GoFrame v2.10 | HTTP 服务、OpenAPI（`/api.json`）与 Swagger（`/swagger`）自动生成 |
 | 数据库 | PostgreSQL 18 | 外部实例（链接在 `config.yaml`，见 `config.example.yaml` 模板），结构由 `manifest/init.sql` 维护 |
 | 前端 | Nuxt 4 / @nuxt/ui v4 / TailwindCSS v4 | SSR + 组件库 |
 | API 客户端 | wormajs | 读取后端 OpenAPI 自动生成前端 TS 请求代码（`web/app/api/`） |
@@ -46,7 +46,7 @@ cookbook/
 
 ### 后端（端口 8000）
 
-前置要求：Go 1.23+；PostgreSQL 可达（复制 `config.example.yaml` 为 `config.yaml` 并填入数据库链接，首次启动前用 `manifest/init.sql` 初始化库结构，也可让驱动按需建表）。
+前置要求：Go 1.26+；PostgreSQL 可达（复制 `config.example.yaml` 为 `config.yaml` 并填入数据库链接，首次启动前用 `manifest/init.sql` 初始化库结构，也可让驱动按需建表）。
 
 ```bash
 # 仓库根目录

@@ -4,7 +4,7 @@
 
 ## 项目形态
 
-- Go 1.23 + GoFrame v2 后端（module 名 `cookbook`）+ Nuxt 4 前端（`web/`），单仓全栈。
+- Go 1.26 + GoFrame v2 后端（module 名 `cookbook`）+ Nuxt 4 前端（`web/`），单仓全栈。
 - 模板基线只保留 `hello` 示例模块与最小首页；`manifest/init.sql` 不含业务表。新业务模块在此基础上按「新增模块流程」生长，不要回填示例业务。
 
 ## 通用设施（模板自带，禁止删除或改坏）

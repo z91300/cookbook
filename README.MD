@@ -94,6 +94,35 @@ cd web && pnpm build   # 前端产物输出到 web/.output/
 2. 初始化/重建库：在 PostgreSQL 上整体执行 `init.sql`（脚本幂等，`CREATE TABLE IF NOT EXISTS`；可用 psql：`psql "<你的链接>" -f manifest/init.sql`）
 3. 生成数据层：`gf gen dao`（读取 `hack/config.yaml` 的数据库链接）
 
+## 配置与安全
+
+数据库等真实凭据**不入 git**（`.gitignore` 已覆盖 `config.yaml` / `config.prod.yaml` / `hack/config.yaml`）。首次使用：
+
+```bash
+cp config.example.yaml config.yaml        # 填入本地数据库链接
+cp config.prod.example.yaml config.prod.yaml  # 填入生产数据库链接（构建镜像需要）
+cp hack/config.example.yaml hack/config.yaml  # 填入 gen dao 链接
+```
+
+## CI/CD（GitHub Actions）
+
+`.github/workflows/build.yml`：push 到 `main` / 打 `v*` 标签 / 手动触发时自动构建单镜像（前端 SSR + 后端 API）→ 隔离 compose 栈自测（`/api/tags`、`/api/recipes`、首页 SSR）→ 推送 GHCR（`ghcr.io/<owner>/cookbook`，tag：`latest` + short-sha，标签推送另有版本 tag）。
+
+仓库需配置 1 个 Secret（Settings → Secrets and variables → Actions）：
+
+| Secret | 说明 |
+| --- | --- |
+| `PROD_DB_LINK` | 生产数据库链接，GoFrame pgsql 格式：`pgsql:<user>:<password>@tcp(<host>:<port>)/<dbname>` |
+
+CI 构建时由该 Secret 生成 `config.prod.yaml`（Dockerfile COPY 为容器内 `config.yaml`），真实凭据不落仓库。
+
+## Docker 部署
+
+- 一键构建/自测/推送（本地）：`uv run python scripts/docker_build_push.py -v <版本> [-r <registry前缀>]`
+  （需本机 Docker 引擎健康；构建前确保 `config.prod.yaml` 已填好真实链接）
+- CI 产物直接可用：`docker compose pull`（设 `COOKBOOK_IMAGE=ghcr.io/<owner>/cookbook:latest`）后 `docker compose up -d --wait`。
+- 编排：根目录 `docker-compose.yml`，单容器暴露 `COOKBOOK_WEB_PORT`（默认 8080 → 3000，前端 SSR）与 `COOKBOOK_API_PORT`（默认 8000，后端 API），变量全部带默认值、不用 `.env`。
+
 ## 模板内容说明
 
 模板内置的最小示例（新项目可保留作连通性自检，或删除）：

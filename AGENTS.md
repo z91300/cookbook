@@ -124,9 +124,13 @@ type GetReq struct {
 - 前端：`cd web && pnpm dev`（端口 3000，绑定 127.0.0.1）；改前端必须 `pnpm dev` 实际访问验证，重要改动跑 `pnpm build`。
 - Windows 提示：本机 DNS 可能将 localhost 解析为 ::1，验证统一用 `http://127.0.0.1:<port>`。
 
-## Docker 部署
+## Docker 部署 / CI
 
-- 一键构建/自测/推送：`python scripts/docker_build_push.py -v <版本> [-r <registry前缀>]`。
+- GitHub Actions（`.github/workflows/build.yml`）：push main / 打 v* 标签时自动构建镜像
+  → 隔离栈自测（`scripts/ci_selftest.py`）→ 推送 GHCR。需仓库 Secret `PROD_DB_LINK`
+  （生产库链接，CI 构建时生成 config.prod.yaml，凭据不落仓库）。
+- 一键构建/自测/推送（本地）：`uv run python scripts/docker_build_push.py -v <版本> [-r <registry前缀>]`
+  （本机无 python 时用 uv；需 Docker 引擎健康，构建前填好 config.prod.yaml）。
   默认流程 = 构建单个镜像 `cookbook`（容器内同时跑 Nuxt SSR 与 GoFrame 后端，暴露 3000/8000
   两端口）→ 起隔离测试栈跑 HTTP 自测（`/api/tags`、`/api/recipes`、首页 SSR）→ 按版本
   tag + latest 推送。推送需 `-r` 且先 `docker login`。

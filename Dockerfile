@@ -73,8 +73,9 @@ RUN apk add --no-cache ca-certificates
 
 COPY --from=web-build /build/.output ./.output
 COPY --from=api-build /out/cookbook ./cookbook
-# 数据库配置不进镜像：运行时由 DB_TYPE/DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_NAME
-# 环境变量装配（internal/cmd/dbenv.go，见 docker-compose.yml），sqlite 模式用 DB_DATA_PATH。
+# 内置默认 config.yaml（server 段 + 占位数据库链接，保证不随机端口启动）；
+# 容器部署时 DB_* 环境变量在启动时覆盖数据库段（internal/cmd/dbenv.go）。
+COPY manifest/config.yaml ./config.yaml
 COPY manifest/init.sql ./manifest/init.sql
 
 RUN chmod +x ./cookbook \

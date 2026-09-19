@@ -1,0 +1,16 @@
+# 镜像内置默认配置（Dockerfile COPY 为容器内 /app/config.yaml）
+# 作用：保证后端总有合法 server 段（端口 8000、OpenAPI 开启），不回退随机端口。
+# 数据库为占位链接（连 localhost 默认端口）——容器部署时由 DB_* 环境变量在启动时
+# 覆盖（internal/cmd/dbenv.go，见 docker-compose.yml），本文件的 database 段仅在
+# 未设 DB_HOST 且挂载了自定义配置时才被读取。
+# 如需完整自定义：挂载覆盖 /app/config.yaml，或 GF_GCFG_FILE 指向挂载的配置文件。
+
+server:
+  address: ":8000"
+  openapiPath: "/api.json"
+  swaggerPath: "/swagger"
+
+database:
+  default:
+    # 占位：容器内真实链接来自 DB_* 环境变量；本地开发用仓库根 config.yaml
+    link: "pgsql:root:password@tcp(127.0.0.1:5432)/cookbook"

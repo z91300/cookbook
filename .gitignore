@@ -18,11 +18,14 @@ temp.yaml
 bin
 **/config/config.yaml
 
-# 真实配置含数据库凭据，不入库（入库 *.example 模板）
-config.yaml
+# 真实配置含数据库凭据，不入库（入库 *.example 模板；manifest/config.yaml 是镜像内置默认配置，需入库）
+/config.yaml
 hack/config.yaml
 
 # SQLite 数据库文件（数据不入库，结构由 manifest/init.sql 维护）
 manifest/*.db
-manifest/*.db*main.exe~
+manifest/*.db*
+
+# 编辑器备份
+main.exe~
 *.exe~

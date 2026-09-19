@@ -117,105 +117,95 @@ async function removeMember(m: Cookbook_internal_model_member_item) {
 </script>
 
 <template>
-  <main class="mx-auto max-w-3xl px-4 py-8">
-    <div class="flex items-center justify-between">
-      <h1 class="text-2xl font-bold">家庭成员</h1>
-      <button
-        type="button"
-        class="rounded-md bg-green-600 px-4 py-2 text-sm text-white hover:bg-green-700"
-        @click="openCreate"
-      >+ 新增成员</button>
+  <main class="page page--narrow">
+    <div class="page-header">
+      <h1 class="page-title">家庭成员</h1>
+      <button type="button" class="btn btn--primary" @click="openCreate">+ 新增成员</button>
     </div>
 
     <!-- 表单 -->
-    <div v-if="formOpen && form" class="mt-4 rounded-lg border border-zinc-200 bg-white p-4">
-      <p v-if="saveError" class="mb-3 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{{ saveError }}</p>
+    <div v-if="formOpen && form" class="card mt-4 p-4">
+      <p v-if="saveError" class="error-alert mb-3">{{ saveError }}</p>
 
       <div class="grid gap-4 sm:grid-cols-2">
         <div>
-          <label class="mb-1 block text-sm font-medium">名字 <span class="text-red-500">*</span></label>
+          <label class="form-label">名字 <span class="text-red-500 dark:text-red-400">*</span></label>
           <input
             v-model="form.name"
             type="text"
             placeholder="如 小明"
-            class="w-full rounded border border-zinc-300 px-2 py-1.5 text-sm outline-none focus:border-green-600"
+            class="input input--sm w-full"
           >
         </div>
         <div>
-          <label class="mb-1 block text-sm font-medium">自定义角色 <span class="text-xs font-normal text-zinc-400">（填写则优先于下面选择）</span></label>
+          <label class="form-label">自定义角色 <span class="form-hint">（填写则优先于下面选择）</span></label>
           <input
             v-model="form.customRole"
             type="text"
-            class="w-full rounded border border-zinc-300 px-2 py-1.5 text-sm outline-none focus:border-green-600"
+            class="input input--sm w-full"
           >
         </div>
       </div>
 
       <div class="mt-3">
-        <label class="mb-1 block text-sm font-medium">角色</label>
+        <label class="form-label">角色</label>
         <div class="flex flex-wrap gap-2">
           <button
             v-for="role in presetRoles"
             :key="role"
             type="button"
-            class="rounded-full border px-3 py-1 text-sm transition-colors"
-            :class="form.role === role
-              ? 'border-green-600 bg-green-600 text-white'
-              : 'border-zinc-300 bg-white text-zinc-700 hover:border-green-500'"
+            class="chip chip--green"
+            :class="{ 'chip--active': form.role === role }"
             @click="toggleRole(role)"
           >{{ role }}</button>
         </div>
       </div>
 
       <div class="mt-3">
-        <label class="mb-1 block text-sm font-medium">备注 <span class="text-xs font-normal text-zinc-400">（口味、忌口、过敏等）</span></label>
+        <label class="form-label">备注 <span class="form-hint">（口味、忌口、过敏等）</span></label>
         <textarea
           v-model="form.note"
           rows="2"
-          class="w-full rounded border border-zinc-300 px-2 py-1.5 text-sm outline-none focus:border-green-600"
+          class="input input--sm w-full"
         />
       </div>
 
-      <div class="mt-4 flex justify-end gap-2">
-        <button
-          type="button"
-          class="rounded-md border border-zinc-300 px-4 py-2 text-sm hover:bg-zinc-50"
-          @click="closeForm"
-        >取消</button>
-        <button
-          type="button"
-          class="rounded-md bg-green-600 px-4 py-2 text-sm text-white hover:bg-green-700 disabled:opacity-50"
-          :disabled="saving"
-          @click="saveForm"
-        >{{ saving ? '保存中…' : '保存' }}</button>
+      <div class="member-form__footer">
+        <button type="button" class="btn btn--outline" @click="closeForm">取消</button>
+        <button type="button" class="btn btn--primary" :disabled="saving" @click="saveForm">{{ saving ? '保存中…' : '保存' }}</button>
       </div>
     </div>
 
     <!-- 列表 -->
-    <p v-if="listError" class="mt-4 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{{ listError }}</p>
-    <p v-else-if="listLoading && !members.length" class="mt-8 text-center text-sm text-zinc-400">加载中…</p>
-    <p v-else-if="!members.length" class="mt-8 text-center text-sm text-zinc-400">还没有添加成员</p>
-    <ul v-else class="mt-4 space-y-2">
-      <li
-        v-for="m in members"
-        :key="m.id"
-        class="rounded-lg border border-zinc-200 bg-white p-4"
-      >
+    <p v-if="listError" class="error-alert mt-4">{{ listError }}</p>
+    <p v-else-if="listLoading && !members.length" class="empty-note mt-8 text-sm">加载中…</p>
+    <p v-else-if="!members.length" class="empty-note mt-8 text-sm">还没有添加成员</p>
+    <ul v-else class="member-list">
+      <li v-for="m in members" :key="m.id" class="card p-4">
         <div class="flex items-center gap-2">
-          <span class="rounded bg-green-100 px-2 py-0.5 text-xs text-green-700">{{ m.role || '成员' }}</span>
-          <span class="min-w-0 flex-1 truncate text-sm font-medium text-zinc-800">{{ m.name }}</span>
-          <button type="button" class="text-xs text-zinc-400 hover:text-green-600" @click="openEdit(m)">编辑</button>
+          <span class="tag-badge tag-badge--green">{{ m.role || '成员' }}</span>
+          <span class="member-card__name">{{ m.name }}</span>
+          <button type="button" class="text-btn text-btn--edit text-btn--xs" @click="openEdit(m)">编辑</button>
           <button
             type="button"
-            class="text-xs text-zinc-400 hover:text-red-500"
+            class="text-btn text-btn--delete text-btn--xs"
             :disabled="deletingId === m.id"
             @click="removeMember(m)"
           >{{ deletingId === m.id ? '删除中…' : '删除' }}</button>
         </div>
-        <p v-if="m.note" class="mt-1.5 text-xs text-zinc-500">{{ m.note }}</p>
+        <p v-if="m.note" class="member-card__note">{{ m.note }}</p>
       </li>
     </ul>
 
-    <NuxtLink to="/" class="mt-6 inline-block text-sm text-zinc-500 hover:text-zinc-700">← 返回菜谱</NuxtLink>
+    <NuxtLink to="/" class="back-link">← 返回菜谱</NuxtLink>
   </main>
 </template>
+
+<style scoped>
+@reference "~/assets/css/main.css";
+
+.member-form__footer { @apply mt-4 flex justify-end gap-2; }
+.member-list { @apply mt-4 space-y-2; }
+.member-card__name { @apply min-w-0 flex-1 truncate text-sm font-medium text-zinc-800 dark:text-zinc-200; }
+.member-card__note { @apply mt-1.5 text-xs text-zinc-500 dark:text-zinc-400; }
+</style>

@@ -380,8 +380,8 @@ export function getOne(config: getOneConfig): Promise<getOneResponse> {
  * type RequestBody = {
  *   // 菜谱标题
  *   title?: string
- *   // 注意事项
- *   tips?: string
+ *   // 封面附件 id，0=清除封面
+ *   coverAttachmentId?: number
  *   // 食材列表，整体覆盖
  *   // [items] start
  *   // [items] end
@@ -397,18 +397,6 @@ export function getOne(config: getOneConfig): Promise<getOneResponse> {
  *   // [items] start
  *   // [items] end
  *   tagIds?: number[]
- *   // 难度：0=未填 1=简单 2=中等 3=较难
- *   difficulty?: number
- *   // 每份热量 kcal，0=未填
- *   calories?: number
- *   // 一句话简介
- *   summary?: string
- *   // 封面附件 id，0=清除封面
- *   coverAttachmentId?: number
- *   // 工具列表，整体覆盖
- *   // [items] start
- *   // [items] end
- *   tools?: string[]
  *   // 步骤列表，整体覆盖
  *   // [items] start
  *   // [items] end
@@ -424,6 +412,18 @@ export function getOne(config: getOneConfig): Promise<getOneResponse> {
  *   }>
  *   // 用餐时间位掩码：1=早餐 2=午餐 4=晚餐 8=加餐；15=全部时段
  *   mealMask?: number
+ *   // 每份热量 kcal，0=未填
+ *   calories?: number
+ *   // 一句话简介
+ *   summary?: string
+ *   // 注意事项
+ *   tips?: string
+ *   // 工具列表，整体覆盖
+ *   // [items] start
+ *   // [items] end
+ *   tools?: string[]
+ *   // 难度：0=未填 1=简单 2=中等 3=较难
+ *   difficulty?: number
  *   // 耗时(分钟)，0=未填
  *   cookMinutes?: number
  * }
@@ -453,10 +453,10 @@ type updateConfig = {
 
     title?: string;
     /**
-     * 注意事项
+     * 封面附件 id，0=清除封面
      */
 
-    tips?: string;
+    coverAttachmentId?: number;
     /**
      * 食材列表，整体覆盖
      */
@@ -468,10 +468,15 @@ type updateConfig = {
 
     tagIds?: number[];
     /**
-     * 难度：0=未填 1=简单 2=中等 3=较难
+     * 步骤列表，整体覆盖
      */
 
-    difficulty?: number;
+    steps?: ComponentTypes.Cookbook_internal_model_recipe_step_item[];
+    /**
+     * 用餐时间位掩码：1=早餐 2=午餐 4=晚餐 8=加餐；15=全部时段
+     */
+
+    mealMask?: number;
     /**
      * 每份热量 kcal，0=未填
      */
@@ -483,25 +488,20 @@ type updateConfig = {
 
     summary?: string;
     /**
-     * 封面附件 id，0=清除封面
+     * 注意事项
      */
 
-    coverAttachmentId?: number;
+    tips?: string;
     /**
      * 工具列表，整体覆盖
      */
 
     tools?: string[];
     /**
-     * 步骤列表，整体覆盖
+     * 难度：0=未填 1=简单 2=中等 3=较难
      */
 
-    steps?: ComponentTypes.Cookbook_internal_model_recipe_step_item[];
-    /**
-     * 用餐时间位掩码：1=早餐 2=午餐 4=晚餐 8=加餐；15=全部时段
-     */
-
-    mealMask?: number;
+    difficulty?: number;
     /**
      * 耗时(分钟)，0=未填
      */

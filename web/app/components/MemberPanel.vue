@@ -126,42 +126,40 @@ async function removeMember(m: Cookbook_internal_model_member_item) {
 
 <template>
   <div class="flex max-h-[60vh] flex-col">
-    <div class="flex items-center justify-between px-3 pt-2">
+    <div class="member-panel__top">
       <button
         v-if="!formOpen"
         type="button"
-        class="text-sm font-medium text-green-600 hover:underline"
+        class="text-btn text-btn--accent"
         @click="openCreate"
       >+ 新增成员</button>
-      <span v-else class="text-sm font-medium text-zinc-600">{{ form?.id ? '编辑成员' : '新增成员' }}</span>
-      <button v-if="formOpen" type="button" class="text-xs text-zinc-400 hover:text-zinc-600" @click="closeForm">返回列表</button>
+      <span v-else class="member-panel__form-title">{{ form?.id ? '编辑成员' : '新增成员' }}</span>
+      <button v-if="formOpen" type="button" class="text-btn text-btn--muted text-btn--xs" @click="closeForm">返回列表</button>
     </div>
 
     <!-- 表单 -->
     <div v-if="formOpen && form" class="flex-1 space-y-3 overflow-y-auto p-3">
-      <p v-if="saveError" class="rounded bg-red-50 px-3 py-2 text-sm text-red-600">{{ saveError }}</p>
+      <p v-if="saveError" class="error-alert">{{ saveError }}</p>
 
       <div>
-        <label class="mb-1 block text-sm font-medium">名字 <span class="text-red-500">*</span></label>
+        <label class="form-label">名字 <span class="text-red-500 dark:text-red-400">*</span></label>
         <input
           v-model="form.name"
           type="text"
           placeholder="如 小明"
-          class="w-full rounded border border-zinc-300 px-2 py-1.5 text-sm outline-none focus:border-green-600"
+          class="input input--sm w-full"
         >
       </div>
 
       <div>
-        <label class="mb-1 block text-sm font-medium">角色</label>
+        <label class="form-label">角色</label>
         <div class="flex flex-wrap gap-2">
           <button
             v-for="role in presetRoles"
             :key="role"
             type="button"
-            class="rounded-full border px-3 py-1 text-sm transition-colors"
-            :class="form.role === role
-              ? 'border-green-600 bg-green-600 text-white'
-              : 'border-zinc-300 bg-white text-zinc-700 hover:border-green-500'"
+            class="chip chip--green"
+            :class="{ 'chip--active': form.role === role }"
             @click="toggleRole(role)"
           >{{ role }}</button>
         </div>
@@ -169,64 +167,63 @@ async function removeMember(m: Cookbook_internal_model_member_item) {
           v-model="form.customRole"
           type="text"
           placeholder="自定义角色（填写则优先于上面选择）"
-          class="mt-2 w-full rounded border border-zinc-300 px-2 py-1.5 text-sm outline-none focus:border-green-600"
+          class="input input--sm mt-2 w-full"
         >
       </div>
 
       <div>
-        <label class="mb-1 block text-sm font-medium">备注 <span class="text-xs font-normal text-zinc-400">（口味、忌口、过敏等）</span></label>
+        <label class="form-label">备注 <span class="form-hint">（口味、忌口、过敏等）</span></label>
         <textarea
           v-model="form.note"
           rows="2"
-          class="w-full rounded border border-zinc-300 px-2 py-1.5 text-sm outline-none focus:border-green-600"
+          class="input input--sm w-full"
         />
       </div>
 
-      <div class="flex justify-end gap-2 pb-1">
-        <button
-          type="button"
-          class="rounded-md border border-zinc-300 px-3 py-1.5 text-sm hover:bg-zinc-50"
-          @click="closeForm"
-        >取消</button>
-        <button
-          type="button"
-          class="rounded-md bg-green-600 px-3 py-1.5 text-sm text-white hover:bg-green-700 disabled:opacity-50"
-          :disabled="saving"
-          @click="saveForm"
-        >{{ saving ? '保存中…' : '保存' }}</button>
+      <div class="member-panel__footer">
+        <button type="button" class="btn btn--outline btn--sm" @click="closeForm">取消</button>
+        <button type="button" class="btn btn--primary btn--sm" :disabled="saving" @click="saveForm">{{ saving ? '保存中…' : '保存' }}</button>
       </div>
     </div>
 
     <!-- 列表 -->
     <div v-else class="flex-1 overflow-y-auto px-2 py-1">
-      <p v-if="listError" class="m-3 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{{ listError }}</p>
-      <p v-else-if="listLoading && !members.length" class="py-6 text-center text-sm text-zinc-400">加载中…</p>
-      <p v-else-if="!members.length" class="py-6 text-center text-sm text-zinc-400">还没有添加成员</p>
+      <p v-if="listError" class="error-alert m-3">{{ listError }}</p>
+      <p v-else-if="listLoading && !members.length" class="empty-note py-6 text-sm">加载中…</p>
+      <p v-else-if="!members.length" class="empty-note py-6 text-sm">还没有添加成员</p>
       <ul v-else>
-        <li v-for="m in members" :key="m.id" class="border-b border-zinc-100 px-1 py-2.5 last:border-0">
+        <li v-for="m in members" :key="m.id" class="member-panel__item">
           <div class="flex items-center gap-2">
-            <span class="rounded bg-green-100 px-2 py-0.5 text-xs text-green-700">{{ m.role || '成员' }}</span>
-            <span class="min-w-0 flex-1 truncate text-sm font-medium text-zinc-800">{{ m.name }}</span>
-            <button type="button" class="text-xs text-zinc-400 hover:text-green-600" @click="openEdit(m)">编辑</button>
+            <span class="tag-badge tag-badge--green">{{ m.role || '成员' }}</span>
+            <span class="member-panel__name">{{ m.name }}</span>
+            <button type="button" class="text-btn text-btn--edit text-btn--xs" @click="openEdit(m)">编辑</button>
             <button
               type="button"
-              class="text-xs text-zinc-400 hover:text-red-500"
+              class="text-btn text-btn--delete text-btn--xs"
               :disabled="deletingId === m.id"
               @click="removeMember(m)"
             >{{ deletingId === m.id ? '删除中…' : '删除' }}</button>
           </div>
-          <p v-if="m.note" class="mt-1 text-xs text-zinc-500">{{ m.note }}</p>
+          <p v-if="m.note" class="member-panel__note">{{ m.note }}</p>
         </li>
       </ul>
 
       <!-- 列表态底部添加入口 -->
       <div v-if="!formOpen" class="p-3">
-        <button
-          type="button"
-          class="w-full rounded-md border border-dashed border-zinc-300 py-2 text-sm text-zinc-500 hover:border-green-500 hover:text-green-600"
-          @click="openCreate"
-        >+ 新增成员</button>
+        <button type="button" class="member-panel__add-bottom" @click="openCreate">+ 新增成员</button>
       </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+@reference "~/assets/css/main.css";
+
+.member-panel__top { @apply flex items-center justify-between px-3 pt-2; }
+.member-panel__form-title { @apply text-sm font-medium text-zinc-600 dark:text-zinc-400; }
+.member-panel__footer { @apply flex justify-end gap-2 pb-1; }
+.member-panel__item { @apply border-b border-zinc-100 px-1 py-2.5 last:border-0 dark:border-zinc-800; }
+.member-panel__name { @apply min-w-0 flex-1 truncate text-sm font-medium text-zinc-800 dark:text-zinc-200; }
+.member-panel__note { @apply mt-1 text-xs text-zinc-500 dark:text-zinc-400; }
+.member-panel__add-bottom { @apply w-full rounded-md border border-dashed border-zinc-300 py-2 text-sm text-zinc-500 transition-colors hover:border-green-500 hover:text-green-600 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-green-500 dark:hover:text-green-400; }
+</style>

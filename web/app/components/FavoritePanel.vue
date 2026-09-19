@@ -139,70 +139,62 @@ defineExpose({ loadFolders })
 
 <template>
   <div class="flex max-h-[60vh] flex-col">
-    <p v-if="foldersError" class="m-3 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{{ foldersError }}</p>
-    <p v-else-if="foldersLoading && !folders.length" class="py-6 text-center text-sm text-zinc-400">加载中…</p>
-    <p v-else-if="!folders.length" class="py-6 text-center text-sm text-zinc-400">暂无收藏夹</p>
+    <p v-if="foldersError" class="error-alert m-3">{{ foldersError }}</p>
+    <p v-else-if="foldersLoading && !folders.length" class="empty-note py-6 text-sm">加载中…</p>
+    <p v-else-if="!folders.length" class="empty-note py-6 text-sm">暂无收藏夹</p>
 
     <div v-else class="flex-1 overflow-y-auto px-2 py-1">
-      <div v-for="folder in folders" :key="folder.id" class="border-b border-zinc-100 last:border-0">
+      <div v-for="folder in folders" :key="folder.id" class="fav-panel__folder">
         <!-- 夹行 -->
-        <div class="flex items-center gap-2 py-2.5">
-          <button
-            type="button"
-            class="min-w-0 flex-1 text-left"
-            @click="toggleFolder(folder.id!)"
-          >
-            <span class="text-sm font-medium text-zinc-800">{{ folder.name }}</span>
-            <span class="ml-2 text-xs text-zinc-400">{{ folder.recipeCount }} 个菜谱</span>
+        <div class="fav-panel__row">
+          <button type="button" class="fav-panel__toggle" @click="toggleFolder(folder.id!)">
+            <span class="fav-panel__name">{{ folder.name }}</span>
+            <span class="fav-panel__count">{{ folder.recipeCount }} 个菜谱</span>
           </button>
+          <button type="button" class="text-btn text-btn--edit text-btn--xs" @click="startRename(folder)">重命名</button>
           <button
             type="button"
-            class="text-xs text-zinc-400 hover:text-green-600"
-            @click="startRename(folder)"
-          >重命名</button>
-          <button
-            type="button"
-            class="text-xs text-zinc-400 hover:text-red-500"
+            class="text-btn text-btn--delete text-btn--xs"
             :disabled="deletingId === folder.id"
             @click="removeFolder(folder.id!)"
           >{{ deletingId === folder.id ? '删除中…' : '删除' }}</button>
-          <span class="text-xs text-zinc-300">{{ expandedId === folder.id ? '▾' : '▸' }}</span>
+          <span class="fav-panel__arrow">{{ expandedId === folder.id ? '▾' : '▸' }}</span>
         </div>
         <!-- 重命名行 -->
         <div v-if="renamingId === folder.id" class="flex gap-2 pb-2">
           <input
             v-model="renameValue"
             type="text"
-            class="flex-1 rounded border border-zinc-300 px-2 py-1 text-sm outline-none focus:border-green-600"
+            class="input input--sm flex-1"
             @keyup.enter="confirmRename"
           >
           <button
             type="button"
-            class="rounded bg-green-600 px-2 py-1 text-xs text-white hover:bg-green-700"
+            class="btn btn--primary btn--xs"
             :disabled="renaming"
             @click="confirmRename"
           >{{ renaming ? '保存中…' : '保存' }}</button>
-          <button type="button" class="text-xs text-zinc-400 hover:text-zinc-600" @click="renamingId = null">取消</button>
+          <button type="button" class="text-btn text-btn--muted text-btn--xs" @click="renamingId = null">取消</button>
         </div>
         <!-- 夹内食谱 -->
         <div v-if="expandedId === folder.id" class="pb-2">
-          <p v-if="recipesLoading" class="py-2 text-center text-xs text-zinc-400">加载中…</p>
-          <p v-else-if="recipesError" class="py-2 text-xs text-red-500">{{ recipesError }}</p>
-          <p v-else-if="!recipes.length" class="py-2 text-center text-xs text-zinc-400">还没有收藏菜谱</p>
+          <p v-if="recipesLoading" class="empty-note py-2 text-xs">加载中…</p>
+          <p v-else-if="recipesError" class="error-text py-2 text-xs">{{ recipesError }}</p>
+          <p v-else-if="!recipes.length" class="empty-note py-2 text-xs">还没有收藏菜谱</p>
           <ul v-else class="space-y-1 pb-1">
-            <li v-for="recipe in recipes" :key="recipe.id" class="flex items-center gap-2 rounded px-1 py-1 hover:bg-zinc-50">
+            <li v-for="recipe in recipes" :key="recipe.id" class="fav-panel__recipe">
               <img
                 v-if="recipe.coverUrl"
                 :src="thumbUrl(recipe.coverUrl)"
                 :alt="recipe.title"
-                class="h-8 w-6 rounded-sm border border-zinc-200 object-cover"
+                class="fav-panel__recipe-img"
                 loading="lazy"
               >
-              <div v-else class="h-8 w-6 rounded-sm border border-dashed border-zinc-300" />
-              <span class="min-w-0 flex-1 truncate text-sm text-zinc-700">{{ recipe.title }}</span>
+              <div v-else class="fav-panel__recipe-empty" />
+              <span class="fav-panel__recipe-name">{{ recipe.title }}</span>
               <button
                 type="button"
-                class="text-xs text-zinc-400 hover:text-red-500"
+                class="text-btn text-btn--delete text-btn--xs"
                 :disabled="removingRecipeId === recipe.id"
                 @click="removeRecipe(folder.id!, recipe.id!)"
               >{{ removingRecipeId === recipe.id ? '移除中…' : '移除' }}</button>
@@ -213,19 +205,19 @@ defineExpose({ loadFolders })
     </div>
 
     <!-- 新建收藏夹 -->
-    <div class="border-t border-zinc-200 p-3">
-      <p v-if="createError" class="mb-2 text-xs text-red-500">{{ createError }}</p>
+    <div class="fav-panel__footer">
+      <p v-if="createError" class="error-text mb-2 text-xs">{{ createError }}</p>
       <div class="flex gap-2">
         <input
           v-model="newFolderName"
           type="text"
           placeholder="新收藏夹名称"
-          class="flex-1 rounded border border-zinc-300 px-2 py-1.5 text-sm outline-none focus:border-green-600"
+          class="input input--sm flex-1"
           @keyup.enter="createFolder"
         >
         <button
           type="button"
-          class="rounded-md bg-green-600 px-3 py-1.5 text-sm text-white hover:bg-green-700 disabled:opacity-50"
+          class="btn btn--primary btn--sm"
           :disabled="creating || !newFolderName.trim()"
           @click="createFolder"
         >{{ creating ? '…' : '添加' }}</button>
@@ -233,3 +225,19 @@ defineExpose({ loadFolders })
     </div>
   </div>
 </template>
+
+<style scoped>
+@reference "~/assets/css/main.css";
+
+.fav-panel__folder { @apply border-b border-zinc-100 last:border-0 dark:border-zinc-800; }
+.fav-panel__row { @apply flex items-center gap-2 py-2.5; }
+.fav-panel__toggle { @apply min-w-0 flex-1 text-left; }
+.fav-panel__name { @apply text-sm font-medium text-zinc-800 dark:text-zinc-200; }
+.fav-panel__count { @apply ml-2 text-xs text-zinc-400 dark:text-zinc-500; }
+.fav-panel__arrow { @apply text-xs text-zinc-300 dark:text-zinc-600; }
+.fav-panel__recipe { @apply flex items-center gap-2 rounded px-1 py-1 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800; }
+.fav-panel__recipe-img { @apply h-8 w-6 rounded-sm border border-zinc-200 object-cover dark:border-zinc-700; }
+.fav-panel__recipe-empty { @apply h-8 w-6 rounded-sm border border-dashed border-zinc-300 dark:border-zinc-700; }
+.fav-panel__recipe-name { @apply min-w-0 flex-1 truncate text-sm text-zinc-700 dark:text-zinc-300; }
+.fav-panel__footer { @apply border-t border-zinc-200 p-3 dark:border-zinc-800; }
+</style>

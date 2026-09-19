@@ -29,3 +29,6 @@ manifest/*.db*
 # 编辑器备份
 main.exe~
 *.exe~
+
+# GUI 测试截图（浏览器自测产物，不入库）
+gui-test-screenshots/

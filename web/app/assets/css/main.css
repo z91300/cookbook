@@ -1,7 +1,25 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
 
-/* 设计基调：扁平、小圆角、无阴影（见需求） */
+/* 防御性声明 layer 顺序：本文件必须是全站最先声明这些层的地方，
+   避免路由级 CSS 先于入口 CSS 到达时把 base 排到 components 之后
+   （届时 preflight 重置会覆盖下方语义类的 margin/border/字号）。 */
+@layer theme, base, components, utilities;
+
+/* ============================================================
+   设计基调：扁平、小圆角、无阴影。
+   深色模式：@nuxt/ui 内置 colorMode（class 策略，<html class="dark">），
+   语义类一律用 @apply + dark: 变体双写浅/深两套色值。
+
+   样式分层约定（新增页面/组件请遵守）：
+   · 共用原语（按钮/输入框/卡片/弹窗/徽章等）→ 本文件 @layer components
+     （低于 utilities 层，模板内联原子类可按需覆盖，如 .input 上的 p-3）；
+   · 组件私有样式 → 各 SFC <style scoped>，不包 @layer（无层样式优先级恒定，
+     不受 CSS chunk 加载顺序影响），且需先 @reference "~/assets/css/main.css"
+     引入主题（否则 @apply 不可用）；
+   · 命名遵循 BEM（block__element--modifier），修饰符定义在基类之后以便覆盖；
+   · 模板内只保留布局/状态原子类（flex、间距、宽度、动效），颜色一律走语义类。
+   ============================================================ */
 :root {
   --ui-radius: 0.375rem;
 }
@@ -9,15 +27,15 @@
 html {
   color-scheme: light;
 
-  /* 常驻滚动条槽位。各页面内容高度不同（列表页滚动、首页/远行商人等不足一屏），
+  /* 常驻滚动条槽位。各页面内容高度不同（列表页滚动、首页等不足一屏），
      互切菜单时可视宽度会差一个滚动条（本机实测 15px），导致整页（含吸顶导航）
      横向抖动 7.5px。预留槽位后所有页面可视宽度恒等，切换不再跳动。
      注：与 app.vue 中 UApp 的 :scroll-body="false" 配套，二者必须同时存在。 */
   scrollbar-gutter: stable;
 
   /* 预留出的槽位不在 body 盒内，露出的是画布色（默认白），与页面底色
-     app.vue 根容器的 bg-zinc-50 不一致，会在右侧显出一条 14px 白边。
-     此处令画布与页面同色消除该边。 */
+     app.vue 根容器的底色不一致，会在右侧显出一条 14px 白边。
+     此处令画布与页面同色消除该边；深色模式同步翻转为 zinc-950。 */
   background-color: var(--color-zinc-50);
 
   /* 例外兜底：超长不可断词（外部链接、英文串）不至于把页面撑出横向滚动条。
@@ -25,14 +43,51 @@ html {
   overflow-wrap: break-word;
 }
 
+html.dark {
+  color-scheme: dark;
+  background-color: var(--color-zinc-950);
+}
+
+/* ---- 全局滚动条：细窄样式（页面 + 弹窗等所有滚动容器） ----
+   Firefox 走 scrollbar-width/color；WebKit 走 ::-webkit-scrollbar。
+   槽位透明，滑块 zinc 色，深色模式翻转为 zinc-700。 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-zinc-300) transparent;
+}
+html.dark * {
+  scrollbar-color: var(--color-zinc-700) transparent;
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  background: var(--color-zinc-300);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-zinc-400);
+}
+html.dark ::-webkit-scrollbar-thumb {
+  background: var(--color-zinc-700);
+}
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: var(--color-zinc-600);
+}
+
 /* ---- 触屏（移动端）适配 ---- */
 
 /* 1) 触控目标：文字型小按钮在手机上给到 38px 高度，减少误触。
-      排除两类，否则会破坏既有布局：
+      排除三类，否则会破坏既有布局：
         · size-* 方形图标按钮（弹窗右上角关闭）
-        · absolute 定位按钮（搜索框内嵌清空按钮，高度受限于 h-9 的输入框） */
+        · absolute 定位按钮（图片上的悬浮钮，高度受限于所在容器）
+        · icon-btn 标记的纯图标钮（缩略图角标删除等，尺寸自成体系） */
 @media (pointer: coarse) {
-  button:not([class*="size-"]):not([class*="absolute"]) {
+  button:not([class*="size-"]):not([class*="absolute"]):not([class*="icon-btn"]) {
     min-height: 2.375rem;
   }
 }
@@ -45,4 +100,74 @@ html {
   textarea {
     font-size: 16px;
   }
+}
+
+/* ============================================================
+   共用原语（components 层：优先级低于 utilities，可被内联原子类覆盖）
+   ============================================================ */
+@layer components {
+  /* ---- 页面骨架 ---- */
+  .page { @apply mx-auto max-w-6xl px-4 py-8; }
+  .page--narrow { @apply max-w-3xl; }
+  .page-header { @apply flex items-center justify-between; }
+  .page-header--wrap { @apply flex-wrap gap-3; }
+  .page-title { @apply text-2xl font-bold; }
+  .section-title { @apply text-sm font-semibold; }
+  .back-link { @apply mt-6 inline-block text-sm text-zinc-500 transition-colors hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300; }
+
+  /* ---- 按钮：实心 / 描边 / 尺寸 ---- */
+  .btn { @apply inline-flex items-center justify-center gap-1 rounded-md px-4 py-2 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50; }
+  .btn--sm { @apply px-3 py-1.5; }
+  .btn--xs { @apply px-2.5 py-1 text-xs; }
+  .btn--primary { @apply bg-green-600 text-white hover:bg-green-700; }
+  .btn--danger { @apply bg-red-600 text-white hover:bg-red-700; }
+  .btn--outline { @apply border border-zinc-300 text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800; }
+
+  /* 纯图标钮基类（悬浮关闭、缩略图角标删除等）；触摸目标规则按此类名排除 */
+  .icon-btn { @apply flex items-center justify-center transition-colors; }
+
+  /* ---- 文字按钮（链接态操作） ---- */
+  .text-btn { @apply transition-colors disabled:opacity-50; }
+  .text-btn--accent { @apply text-green-600 hover:underline dark:text-green-400; }
+  .text-btn--muted { @apply text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300; }
+  .text-btn--edit { @apply text-zinc-400 hover:text-green-600 dark:text-zinc-500 dark:hover:text-green-400; }
+  .text-btn--delete { @apply text-zinc-400 hover:text-red-500 dark:text-zinc-500 dark:hover:text-red-400; }
+  .text-btn--danger { @apply text-red-500 hover:underline dark:text-red-400; }
+  .text-btn--xs { @apply text-xs; }
+
+  /* ---- 筛选圆片（单选/多选 pill，accent 色随场景） ---- */
+  .chip { @apply rounded-full border px-3 py-1 text-sm transition-colors; }
+  .chip--green { @apply border-zinc-300 bg-white text-zinc-700 hover:border-green-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-green-500; }
+  .chip--green.chip--active { @apply border-green-600 bg-green-600 text-white hover:border-green-600; }
+  .chip--amber { @apply border-zinc-300 bg-white text-zinc-700 hover:border-amber-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-amber-500; }
+  .chip--amber.chip--active { @apply border-amber-600 bg-amber-600 text-white hover:border-amber-600; }
+  .chip--sky { @apply border-zinc-300 bg-white text-zinc-700 hover:border-sky-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-sky-500; }
+  .chip--sky.chip--active { @apply border-sky-600 bg-sky-600 text-white hover:border-sky-600; }
+
+  /* ---- 表单控件 ---- */
+  .input { @apply rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none transition-colors focus:border-green-600 dark:border-zinc-700 dark:bg-zinc-900 dark:focus:border-green-500; }
+  .input--lg { @apply px-4 py-2; }
+  .input--sm { @apply rounded px-2 py-1.5; }
+  .form-label { @apply mb-1 block text-sm font-medium; }
+  .form-hint { @apply text-xs text-zinc-400 dark:text-zinc-500; }
+
+  /* ---- 卡片 / 弹窗 ---- */
+  .card { @apply rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900; }
+  .modal-overlay { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4; }
+  .modal-overlay--confirm { @apply z-[60]; }
+  .modal-overlay--top { @apply z-[70]; }
+  .modal-panel { @apply w-full rounded-lg bg-white shadow-lg dark:bg-zinc-900; }
+  .modal-title { @apply text-lg font-semibold; }
+  .modal-title--sm { @apply text-base; }
+  .modal-close { @apply flex size-8 items-center justify-center rounded-md text-zinc-400 transition-colors hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300; }
+
+  /* ---- 徽章 / 提示 ---- */
+  .tag-badge { @apply rounded bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300; }
+  .tag-badge--md { @apply px-2 py-1; }
+  .tag-badge--green { @apply bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400; }
+  .tag-badge--amber { @apply bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400; }
+  .error-alert { @apply rounded bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-500/10 dark:text-red-400; }
+  .error-text { @apply text-sm text-red-500 dark:text-red-400; }
+  .warn-note { @apply rounded bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:bg-amber-500/10 dark:text-amber-400; }
+  .empty-note { @apply text-center text-zinc-400 dark:text-zinc-500; }
 }

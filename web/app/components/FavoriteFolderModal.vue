@@ -17,6 +17,10 @@ const folders = ref<FolderRow[]>([])
 const loading = ref(false)
 const error = ref('')
 
+// 弹窗打开期间锁定页面滚动 + 移动端侧滑返回关闭弹窗
+useBodyScrollLock([() => props.open])
+useModalBackClose(() => props.open, () => emit('close'))
+
 // 新建收藏夹（内联输入行）
 const creating = ref(false)
 const newName = ref('')
@@ -119,26 +123,22 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
 <template>
   <Teleport to="body">
-    <div
-      v-if="open"
-      class="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4"
-      @click.self="emit('close')"
-    >
-      <div class="w-full max-w-sm rounded-lg bg-white shadow-lg">
-        <div class="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
-          <h3 class="text-base font-semibold">收藏到收藏夹</h3>
-          <button type="button" class="text-zinc-400 hover:text-zinc-600" @click="emit('close')">✕</button>
+    <div v-if="open" class="modal-overlay modal-overlay--top" @click.self="emit('close')">
+      <div class="modal-panel max-w-sm">
+        <div class="fav-modal__header">
+          <h3 class="modal-title--sm">收藏到收藏夹</h3>
+          <button type="button" class="modal-close" @click="emit('close')">✕</button>
         </div>
 
-        <div class="max-h-72 min-h-24 overflow-y-auto px-2 py-1">
-          <p v-if="loading" class="py-8 text-center text-sm text-zinc-400">加载中…</p>
+        <div class="fav-modal__list">
+          <p v-if="loading" class="empty-note py-8 text-sm">加载中…</p>
           <template v-else>
-            <p v-if="error" class="m-2 rounded bg-red-50 px-3 py-2 text-xs text-red-600">{{ error }}</p>
-            <p v-if="!folders.length" class="py-6 text-center text-xs text-zinc-400">暂无收藏夹</p>
+            <p v-if="error" class="error-alert m-2 text-xs">{{ error }}</p>
+            <p v-if="!folders.length" class="empty-note py-6 text-xs">暂无收藏夹</p>
             <label
               v-for="folder in folders"
               :key="folder.id"
-              class="flex cursor-pointer items-center gap-2 rounded px-2 py-2 hover:bg-zinc-50"
+              class="fav-modal__folder"
             >
               <input
                 type="checkbox"
@@ -147,43 +147,50 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
                 :disabled="folder.busy"
                 @change="toggleFolder(folder)"
               >
-              <span class="min-w-0 flex-1 truncate text-sm text-zinc-700">{{ folder.name }}</span>
-              <span v-if="folder.busy" class="text-xs text-zinc-400">…</span>
-              <span v-else class="text-xs text-zinc-400">{{ folder.recipeCount }}</span>
+              <span class="fav-modal__folder-name">{{ folder.name }}</span>
+              <span v-if="folder.busy" class="fav-modal__folder-count">…</span>
+              <span v-else class="fav-modal__folder-count">{{ folder.recipeCount }}</span>
             </label>
           </template>
         </div>
 
         <!-- 新建收藏夹：点击弹窗其他区域或 ESC 取消 -->
-        <div class="border-t border-zinc-200 p-3">
+        <div class="fav-modal__footer">
           <template v-if="creating">
-            <p v-if="createError" class="mb-2 text-xs text-red-500">{{ createError }}</p>
+            <p v-if="createError" class="error-text mb-2 text-xs">{{ createError }}</p>
             <div class="flex gap-2">
               <input
                 ref="newNameInput"
                 v-model="newName"
                 type="text"
                 placeholder="新收藏夹名称"
-                class="flex-1 rounded border border-zinc-300 px-2 py-1.5 text-sm outline-none focus:border-green-600"
+                class="input input--sm flex-1"
                 @keyup.enter="createFolder"
                 @blur="cancelCreating"
               >
               <button
                 type="button"
-                class="rounded bg-green-600 px-3 py-1.5 text-sm text-white hover:bg-green-700 disabled:opacity-50"
+                class="btn btn--primary btn--sm"
                 :disabled="creatingFolder || !newName.trim()"
                 @click="createFolder"
               >{{ creatingFolder ? '…' : '创建' }}</button>
             </div>
           </template>
-          <button
-            v-else
-            type="button"
-            class="w-full rounded border border-dashed border-zinc-300 py-2 text-sm text-zinc-500 hover:border-green-500 hover:text-green-600"
-            @click="toggleCreating"
-          >+ 新建收藏夹</button>
+          <button v-else type="button" class="fav-modal__create" @click="toggleCreating">+ 新建收藏夹</button>
         </div>
       </div>
     </div>
   </Teleport>
 </template>
+
+<style scoped>
+@reference "~/assets/css/main.css";
+
+.fav-modal__header { @apply flex items-center justify-between border-b border-zinc-200 px-4 py-3 dark:border-zinc-800; }
+.fav-modal__list { @apply max-h-72 min-h-24 overflow-y-auto px-2 py-1; }
+.fav-modal__folder { @apply flex cursor-pointer items-center gap-2 rounded px-2 py-2 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800; }
+.fav-modal__folder-name { @apply min-w-0 flex-1 truncate text-sm text-zinc-700 dark:text-zinc-300; }
+.fav-modal__folder-count { @apply text-xs text-zinc-400 dark:text-zinc-500; }
+.fav-modal__footer { @apply border-t border-zinc-200 p-3 dark:border-zinc-800; }
+.fav-modal__create { @apply w-full rounded border border-dashed border-zinc-300 py-2 text-sm text-zinc-500 transition-colors hover:border-green-500 hover:text-green-600 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-green-500 dark:hover:text-green-400; }
+</style>

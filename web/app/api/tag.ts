@@ -54,3 +54,177 @@ type getListConfig = {};
 export function getList(config: getListConfig = {}): Promise<getListResponse> {
   return request('GET', '/tags', config);
 }
+
+/**
+ * ---
+ *
+ * [POST] 新增标签
+ *
+ * **path:** /tags
+ *
+ * ---
+ *
+ * **RequestBody**
+ * ```ts
+ * type RequestBody = {
+ *   // 标签名
+ *   name: string
+ * }
+ * ```
+ *
+ * ---
+ *
+ * **Response**
+ * ```ts
+ * type Response = {
+ *   // 新标签 id
+ *   id?: number
+ * }
+ * ```
+ *
+ */
+type createResponse = ComponentTypes.Cookbook_api_tag_v1_create_res;
+type createConfig = {
+  body?: ComponentTypes.Cookbook_api_tag_v1_create_req;
+};
+
+export function create(config: createConfig = {}): Promise<createResponse> {
+  return request('POST', '/tags', config);
+}
+
+/**
+ * ---
+ *
+ * [GET] 查询标签管理列表
+ *
+ * **path:** /tags/manage
+ *
+ * ---
+ *
+ * **Response**
+ * ```ts
+ * type Response = {
+ *   // 标签管理列表
+ *   // [items] start
+ *   // [items] end
+ *   list?: Array<{
+ *     // 标签 id
+ *     id?: number
+ *     // 标签名
+ *     name?: string
+ *     // 展示排序
+ *     sort?: number
+ *     // 使用该标签的菜谱数量（不含已删除菜谱）
+ *     recipeCount?: number
+ *   }>
+ * }
+ * ```
+ *
+ */
+type getManageListResponse = ComponentTypes.Cookbook_api_tag_v1_get_manage_list_res;
+type getManageListConfig = {};
+
+export function getManageList(config: getManageListConfig = {}): Promise<getManageListResponse> {
+  return request('GET', '/tags/manage', config);
+}
+
+/**
+ * ---
+ *
+ * [DELETE] 删除标签
+ *
+ * **path:** /tags/{id}
+ *
+ * ---
+ *
+ * **Path Parameters**
+ * ```ts
+ * type PathParameters = {
+ *   // 标签 id
+ *   id: number
+ * }
+ * ```
+ *
+ * ---
+ *
+ * **Response**
+ * ```ts
+ * type Response = {
+ *   // 受影响菜谱数量（被移除该标签的菜谱数）
+ *   affectedRecipes?: number
+ * }
+ * ```
+ *
+ */
+type deleteResponse = ComponentTypes.Cookbook_api_tag_v1_delete_res;
+type deleteConfig = {
+  pathParams: {
+    /**
+     * 标签 id
+     */
+
+    id: number;
+  };
+};
+
+const deleteFn = (config: deleteConfig): Promise<deleteResponse> => {
+  return request('DELETE', '/tags/{id}', config);
+};
+export { deleteFn as delete };
+
+/**
+ * ---
+ *
+ * [PUT] 重命名标签
+ *
+ * **path:** /tags/{id}
+ *
+ * ---
+ *
+ * **Path Parameters**
+ * ```ts
+ * type PathParameters = {
+ *   // 标签 id
+ *   id: number
+ * }
+ * ```
+ *
+ * ---
+ *
+ * **RequestBody**
+ * ```ts
+ * type RequestBody = {
+ *   // 标签名
+ *   name: string
+ * }
+ * ```
+ *
+ * ---
+ *
+ * **Response**
+ * ```ts
+ * type Response = object
+ * ```
+ *
+ */
+type updateResponse = ComponentTypes.Cookbook_api_tag_v1_update_res;
+type updateConfig = {
+  pathParams: {
+    /**
+     * 标签 id
+     */
+
+    id: number;
+  };
+  body?: {
+    /**
+     * 标签名
+     */
+
+    name: string;
+  };
+};
+
+export function update(config: updateConfig): Promise<updateResponse> {
+  return request('PUT', '/tags/{id}', config);
+}

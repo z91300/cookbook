@@ -15,8 +15,7 @@ const savedTip = ref('')
 const entries = ref<SettingItem[]>([])
 
 // 提示词模板可用变量说明（与后端 renderTemplate 支持的 {recipe.*} 一致）
-const templateVars = [
-  { name: '{recipe.title}', desc: '菜谱标题' },
+const templateVars = [  { name: '{recipe.title}', desc: '菜谱标题' },
   { name: '{recipe.summary}', desc: '一句话简介' },
   { name: '{recipe.ingredients}', desc: '食材列表（逐行「名称 用量」）' },
   { name: '{recipe.steps}', desc: '步骤列表（逐行 ①②③ 编号）' },
@@ -119,72 +118,379 @@ function fillExample(item: SettingItem) {
   item.value = IMAGE_GEN_PROMPT_HINT
 }
 
-onMounted(load)
+// ============ 标签管理：列表（含菜谱数）/ 新增 / 重命名 / 删除 ============
+interface TagRow {
+  id: number
+  name: string
+  sort: number
+  recipeCount: number
+}
+
+// 挂载即拉取，初始置 true 避免首帧闪现「暂无标签」
+const tagsLoading = ref(true)
+const tagRows = ref<TagRow[]>([])
+const tagError = ref('')
+const tagSavedTip = ref('')
+
+// 新增
+const newTagName = ref('')
+const addingTag = ref(false)
+
+// 重命名（行内编辑）
+const renamingId = ref<number | null>(null)
+const renameValue = ref('')
+const renamingBusy = ref(false)
+
+// 删除确认弹窗
+const deleteTagTarget = ref<TagRow | null>(null)
+const deletingTag = ref(false)
+const deleteTagError = ref('')
+
+// 删除确认弹窗期间锁定页面滚动 + 侧滑返回关闭确认框
+useBodyScrollLock([() => deleteTagTarget.value !== null])
+useModalBackClose(() => deleteTagTarget.value !== null, () => (deleteTagTarget.value = null))
+
+function showTagTip(text: string) {
+  tagSavedTip.value = text
+  setTimeout(() => (tagSavedTip.value = ''), 2500)
+}
+
+async function loadTags() {
+  tagsLoading.value = true
+  tagError.value = ''
+  try {
+    const res = await apis.tag.getManageList()
+    tagRows.value = (res.list ?? []).map(t => ({
+      id: t.id!,
+      name: t.name ?? '',
+      sort: t.sort ?? 0,
+      recipeCount: t.recipeCount ?? 0,
+    }))
+  }
+  catch (e) {
+    tagError.value = e instanceof Error ? e.message : '加载标签失败'
+  }
+  tagsLoading.value = false
+}
+
+// 变更后刷新首页标签栏缓存（useAsyncData key 与首页一致）
+async function refreshHomeTags() {
+  try {
+    await refreshNuxtData('tag-list')
+  }
+  catch {
+    // 首页缓存刷新失败不影响本页
+  }
+}
+
+async function addTag() {
+  const name = newTagName.value.trim()
+  if (!name || addingTag.value) return
+  addingTag.value = true
+  tagError.value = ''
+  try {
+    await apis.tag.create({ body: { name } })
+    newTagName.value = ''
+    await loadTags()
+    await refreshHomeTags()
+    showTagTip('标签已添加')
+  }
+  catch (e) {
+    tagError.value = e instanceof Error ? e.message : '添加失败'
+  }
+  addingTag.value = false
+}
+
+function startRename(tag: TagRow) {
+  renamingId.value = tag.id
+  renameValue.value = tag.name
+  tagError.value = ''
+}
+
+function cancelRename() {
+  renamingId.value = null
+  renameValue.value = ''
+}
+
+async function confirmRename() {
+  const id = renamingId.value
+  const name = renameValue.value.trim()
+  if (id === null || !name || renamingBusy.value) return
+  renamingBusy.value = true
+  tagError.value = ''
+  try {
+    await apis.tag.update({ pathParams: { id }, body: { name } })
+    renamingId.value = null
+    renameValue.value = ''
+    await loadTags()
+    await refreshHomeTags()
+    showTagTip('标签已重命名')
+  }
+  catch (e) {
+    tagError.value = e instanceof Error ? e.message : '重命名失败'
+  }
+  renamingBusy.value = false
+}
+
+function askDeleteTag(tag: TagRow) {
+  deleteTagError.value = ''
+  deleteTagTarget.value = tag
+}
+
+function cancelDeleteTag() {
+  deleteTagTarget.value = null
+}
+
+async function confirmDeleteTag() {
+  const tag = deleteTagTarget.value
+  if (!tag || deletingTag.value) return
+  deletingTag.value = true
+  deleteTagError.value = ''
+  try {
+    const res = await apis.tag.delete({ pathParams: { id: tag.id } })
+    deleteTagTarget.value = null
+    await loadTags()
+    await refreshHomeTags()
+    const affected = res.affectedRecipes ?? 0
+    showTagTip(affected > 0 ? `已删除标签，并从 ${affected} 道菜谱移除该标签` : '标签已删除')
+  }
+  catch (e) {
+    deleteTagError.value = e instanceof Error ? e.message : '删除失败'
+  }
+  deletingTag.value = false
+}
+
+onMounted(() => {
+  load()
+  loadTags()
+})
+
+// ============ 页签 ============
+// 标签管理与通用设置分页签管理，避免单页过长
+type SettingsTab = 'tags' | 'general'
+const activeTab = ref<SettingsTab>('tags')
+const settingsTabs: Array<{ key: SettingsTab, label: string }> = [
+  { key: 'tags', label: '标签管理' },
+  { key: 'general', label: '通用设置' },
+]
 </script>
 
 <template>
-  <main class="mx-auto max-w-3xl px-4 py-8">
-    <div class="flex items-center justify-between">
-      <h1 class="text-xl font-semibold">设置</h1>
-      <NuxtLink to="/" class="text-sm text-green-600 hover:underline">← 返回首页</NuxtLink>
+  <main class="page page--narrow">
+    <div class="page-header">
+      <h1 class="page-title">设置</h1>
+      <NuxtLink to="/" class="text-btn text-btn--accent">← 返回首页</NuxtLink>
     </div>
 
-    <p v-if="error" class="mt-4 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{{ error }}</p>
+    <p v-if="error" class="error-alert mt-4">{{ error }}</p>
 
-    <div v-if="loading" class="mt-8 text-center text-sm text-zinc-400">加载中…</div>
+    <!-- 页签：标签管理 / 通用设置 -->
+    <div class="settings-tabs">
+      <button
+        v-for="t in settingsTabs"
+        :key="t.key"
+        type="button"
+        class="settings-tab"
+        :class="{ 'settings-tab--active': activeTab === t.key }"
+        @click="activeTab = t.key"
+      >
+        {{ t.label }}
+      </button>
+    </div>
 
-    <template v-else>
-      <div v-if="!entries.length" class="mt-8 rounded-md border border-dashed border-zinc-300 p-8 text-center text-sm text-zinc-400">
-        暂无设置项
+    <!-- 标签管理 -->
+    <section v-show="activeTab === 'tags'" class="mt-6">
+      <div class="flex items-center justify-between">
+        <h2 class="section-title">标签管理</h2>
+        <span v-if="tagSavedTip" class="saved-tip">{{ tagSavedTip }}</span>
       </div>
+      <p class="form-hint mt-1">新增标签会排在末尾；删除标签会把它从使用中的菜谱上移除，菜谱本身保留。</p>
 
-      <div v-for="item in entries" :key="item.key" class="mt-6">
-        <div class="flex items-center justify-between">
-          <label :for="`setting-${item.key}`" class="text-sm font-semibold">{{ item.key }}</label>
-          <div class="flex items-center gap-3">
-            <span v-if="savedTip" class="text-xs text-green-600">{{ savedTip }}</span>
-            <button
-              v-if="item.key === KEY_IMAGE_GEN_PROMPT"
-              type="button"
-              class="text-xs text-zinc-500 hover:text-green-600 hover:underline"
-              @click="fillExample(item)"
+      <p v-if="tagError" class="error-alert mt-2">{{ tagError }}</p>
+
+      <div v-if="tagsLoading" class="empty-note mt-3 text-sm">加载中…</div>
+      <ul v-else class="settings-list">
+        <li v-if="!tagRows.length" class="empty-note px-3 py-4 text-sm">暂无标签</li>
+        <li v-for="tag in tagRows" :key="tag.id" class="settings-list__item">
+          <template v-if="renamingId === tag.id">
+            <input
+              v-model="renameValue"
+              type="text"
+              maxlength="20"
+              class="input input--sm min-w-0 flex-1"
+              @keyup.enter="confirmRename"
+              @keyup.esc="cancelRename"
             >
-              填入推荐模板
-            </button>
-          </div>
-        </div>
-        <p v-if="hintText(item.key)" class="mt-1 text-xs text-zinc-400">{{ hintText(item.key) }}</p>
-        <textarea
-          :id="`setting-${item.key}`"
-          v-model="item.value"
-          rows="16"
-          class="mt-2 w-full rounded-md border border-zinc-300 bg-white p-3 font-mono text-sm leading-relaxed focus:border-green-500 focus:outline-none"
-          :placeholder="item.key === KEY_IMAGE_GEN_PROMPT ? '输入生图提示词模板，可用 {recipe.title} 等变量…' : '设置值'"
-        />
-      </div>
+            <button
+              type="button"
+              class="btn btn--primary btn--xs"
+              :disabled="renamingBusy || !renameValue.trim()"
+              @click="confirmRename"
+            >{{ renamingBusy ? '保存中…' : '保存' }}</button>
+            <button type="button" class="btn btn--outline btn--xs" @click="cancelRename">取消</button>
+          </template>
+          <template v-else>
+            <span class="settings-list__name">{{ tag.name }}</span>
+            <span class="settings-list__count">{{ tag.recipeCount }} 道菜谱</span>
+            <button type="button" class="text-btn text-btn--edit text-btn--xs" @click="startRename(tag)">重命名</button>
+            <button
+              type="button"
+              class="text-btn text-btn--delete text-btn--xs"
+              @click="askDeleteTag(tag)"
+            >删除</button>
+          </template>
+        </li>
+      </ul>
 
-      <div v-if="entries.length" class="mt-6 flex justify-end">
+      <div class="mt-3 flex gap-2">
+        <input
+          v-model="newTagName"
+          type="text"
+          maxlength="20"
+          placeholder="新标签名（最长 20 字）"
+          class="input w-56"
+          @keyup.enter="addTag"
+        >
         <button
           type="button"
-          class="rounded-md bg-green-600 px-6 py-2 text-sm text-white hover:bg-green-700 disabled:opacity-50"
-          :disabled="saving"
-          @click="save"
+          class="btn btn--primary"
+          :disabled="addingTag || !newTagName.trim()"
+          @click="addTag"
         >
-          {{ saving ? '保存中…' : '保存' }}
+          {{ addingTag ? '添加中…' : '添加标签' }}
         </button>
       </div>
+    </section>
 
-      <!-- 模板变量说明 -->
-      <section class="mt-10 rounded-md bg-zinc-50 p-4">
-        <h2 class="text-sm font-semibold">提示词模板变量</h2>
-        <p class="mt-1 text-xs text-zinc-500">模板中以 <code class="rounded bg-zinc-200 px-1">{recipe.xxx}</code> 形式引用菜谱字段，复制提示词时自动替换为对应菜谱的内容。</p>
-        <ul class="mt-3 grid grid-cols-1 gap-x-6 gap-y-1 text-xs sm:grid-cols-2">
-          <li v-for="v in templateVars" :key="v.name" class="flex justify-between gap-2 border-b border-dashed border-zinc-200 py-1">
-            <code class="shrink-0 text-green-700">{{ v.name }}</code>
-            <span class="text-right text-zinc-500">{{ v.desc }}</span>
-          </li>
-        </ul>
-      </section>
-    </template>
+    <!-- 通用设置 -->
+    <div v-show="activeTab === 'general'">
+      <div v-if="loading" class="empty-note mt-8 text-sm">加载中…</div>
+
+      <template v-else>
+        <div v-if="!entries.length" class="settings-empty">
+          暂无设置项
+        </div>
+
+        <div v-for="item in entries" :key="item.key" class="mt-6">
+          <div class="flex items-center justify-between">
+            <label :for="`setting-${item.key}`" class="section-title">{{ item.key }}</label>
+            <div class="flex items-center gap-3">
+              <span v-if="savedTip" class="saved-tip">{{ savedTip }}</span>
+              <button
+                v-if="item.key === KEY_IMAGE_GEN_PROMPT"
+                type="button"
+                class="text-btn text-btn--edit text-btn--xs"
+                @click="fillExample(item)"
+              >
+                填入推荐模板
+              </button>
+            </div>
+          </div>
+          <p v-if="hintText(item.key)" class="form-hint mt-1">{{ hintText(item.key) }}</p>
+          <textarea
+            :id="`setting-${item.key}`"
+            v-model="item.value"
+            rows="16"
+            class="input mt-2 w-full p-3 font-mono leading-relaxed"
+            :placeholder="item.key === KEY_IMAGE_GEN_PROMPT ? '输入生图提示词模板，可用 {recipe.title} 等变量…' : '设置值'"
+          />
+        </div>
+
+        <div v-if="entries.length" class="mt-6 flex justify-end">
+          <button
+            type="button"
+            class="btn btn--primary"
+            :disabled="saving"
+            @click="save"
+          >
+            {{ saving ? '保存中…' : '保存' }}
+          </button>
+        </div>
+
+        <!-- 模板变量说明 -->
+        <section class="settings-vars">
+          <h2 class="section-title">提示词模板变量</h2>
+          <p class="form-hint mt-1">模板中以 <code class="inline-code">{recipe.xxx}</code> 形式引用菜谱字段，复制提示词时自动替换为对应菜谱的内容。</p>
+          <ul class="settings-vars__list">
+            <li v-for="v in templateVars" :key="v.name" class="settings-vars__row">
+              <code class="settings-vars__name">{{ v.name }}</code>
+              <span class="settings-vars__desc">{{ v.desc }}</span>
+            </li>
+          </ul>
+        </section>
+      </template>
+    </div>
   </main>
+
+  <!-- 删除标签确认弹窗 -->
+  <Teleport to="body">
+    <div
+      v-if="deleteTagTarget"
+      class="modal-overlay modal-overlay--confirm"
+      @click.self="cancelDeleteTag"
+    >
+      <div class="modal-panel max-w-sm p-6">
+        <h3 class="modal-title--sm">删除标签</h3>
+        <p class="delete-tag-modal__text">
+          确定要删除标签
+          <span class="delete-tag-modal__highlight">「{{ deleteTagTarget.name }}」</span>？
+        </p>
+        <p
+          v-if="deleteTagTarget.recipeCount > 0"
+          class="warn-note mt-2"
+        >
+          该标签正被 {{ deleteTagTarget.recipeCount }} 道菜谱使用，删除后将从这些菜谱中移除该标签，菜谱本身不受影响。
+        </p>
+        <p v-if="deleteTagError" class="error-text mt-2">{{ deleteTagError }}</p>
+        <div class="delete-tag-modal__actions">
+          <button
+            type="button"
+            class="btn btn--outline"
+            :disabled="deletingTag"
+            @click="cancelDeleteTag"
+          >
+            取消
+          </button>
+          <button
+            type="button"
+            class="btn btn--danger"
+            :disabled="deletingTag"
+            @click="confirmDeleteTag"
+          >
+            {{ deletingTag ? '删除中…' : '删除' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>
+
+<style scoped>
+@reference "~/assets/css/main.css";
+
+/* ---- 页签 ---- */
+.settings-tabs { @apply mt-6 flex gap-6 border-b border-zinc-200 dark:border-zinc-800; }
+.settings-tab { @apply -mb-px border-b-2 border-transparent px-1 pb-2 text-sm text-zinc-500 transition-colors hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200; }
+.settings-tab--active { @apply border-green-600 font-medium text-green-700 hover:text-green-700 dark:border-green-500 dark:text-green-400 dark:hover:text-green-400; }
+
+/* ---- 标签管理 ---- */
+.saved-tip { @apply text-xs text-green-600 dark:text-green-400; }
+.settings-list { @apply mt-3 divide-y divide-zinc-100 rounded-md border border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-900; }
+.settings-list__item { @apply flex items-center gap-3 px-3 py-2; }
+.settings-list__name { @apply min-w-0 flex-1 truncate text-sm text-zinc-800 dark:text-zinc-200; }
+.settings-list__count { @apply shrink-0 text-xs text-zinc-400 dark:text-zinc-500; }
+
+/* ---- 通用设置 ---- */
+.settings-empty { @apply mt-8 rounded-md border border-dashed border-zinc-300 p-8 text-center text-sm text-zinc-400 dark:border-zinc-700 dark:text-zinc-500; }
+.settings-vars { @apply mt-10 rounded-md bg-zinc-50 p-4 dark:bg-zinc-900; }
+.inline-code { @apply rounded bg-zinc-200 px-1 dark:bg-zinc-800; }
+.settings-vars__list { @apply mt-3 grid grid-cols-1 gap-x-6 gap-y-1 text-xs sm:grid-cols-2; }
+.settings-vars__row { @apply flex justify-between gap-2 border-b border-dashed border-zinc-200 py-1 dark:border-zinc-800; }
+.settings-vars__name { @apply shrink-0 text-green-700 dark:text-green-400; }
+.settings-vars__desc { @apply text-right text-zinc-500 dark:text-zinc-400; }
+
+/* ---- 删除标签确认弹窗 ---- */
+.delete-tag-modal__text { @apply mt-3 text-sm text-zinc-600 dark:text-zinc-400; }
+.delete-tag-modal__highlight { @apply font-medium text-red-600 dark:text-red-400; }
+.delete-tag-modal__actions { @apply mt-5 flex justify-end gap-3; }
+</style>

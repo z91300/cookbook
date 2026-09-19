@@ -1,11 +1,10 @@
-# GitHub Actions：构建单镜像（前端 SSR + GoFrame 后端）→ 隔离栈自测 → 推送 GHCR
+# GitHub Actions：构建单镜像（前端 SSR + GoFrame 后端）→ 推送 GHCR
 #
-# 所需仓库 Secret（Settings → Secrets and variables → Actions）：
-#   PROD_DB_LINK  生产数据库链接，GoFrame pgsql 格式：
-#                 pgsql:<user>:<password>@tcp(<host>:<port>)/<dbname>
+# 无需配置任何仓库 Secret：推送 GHCR 使用内置 GITHUB_TOKEN（permissions.packages），
+# 数据库凭据运行时经 DB_* 环境变量注入，镜像与 CI 内均无凭据。
 #
 # 触发：
-#   push 到 main 分支        → 构建 + 自测 + 推送（tag: latest + short-sha）
+#   push 到 main 分支        → 构建 + 推送（tag: latest + short-sha）
 #   手动 workflow_dispatch   → 可选指定版本号 tag
 #   push v* 标签             → tag: <版本> + latest
 

@@ -76,6 +76,16 @@ export function upload(config: uploadConfig = {}): Promise<uploadResponse> {
  *
  * ---
  *
+ * **Query Parameters**
+ * ```ts
+ * type QueryParameters = {
+ *   // 缩略图宽度（可选，仅支持 360，不放大）
+ *   w?: number
+ * }
+ * ```
+ *
+ * ---
+ *
  * **Response**
  * ```ts
  * type Response = object
@@ -90,6 +100,13 @@ type getContentConfig = {
      */
 
     id: number;
+  };
+  params?: {
+    /**
+     * 缩略图宽度（可选，仅支持 360，不放大）
+     */
+
+    w?: number;
   };
 };
 

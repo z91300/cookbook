@@ -11,9 +11,10 @@ export default defineNuxtConfig({
 
   modules: ['@nuxt/ui'],
 
-  // 站点为纯浅色设计（扁平/小圆角/无阴影），不跟随系统暗色
+  // 深色模式：启用 @nuxt/ui 内置 colorMode（@nuxtjs/color-mode，class 策略，
+  // <html class="dark">）。偏好初始跟随系统，页面右上角按钮经 useColorMode 切换。
   ui: {
-    colorMode: false,
+    colorMode: true,
   },
 
   css: ['~/assets/css/main.css'],

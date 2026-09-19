@@ -350,6 +350,27 @@ export interface Cookbook_api_setting_v1_upsert_req {
   items: Cookbook_internal_model_setting_upsert_input[];
 }
 export type Cookbook_api_setting_v1_upsert_res = object;
+export interface Cookbook_api_tag_v1_create_req {
+  /**
+   * 标签名
+   */
+
+  name: string;
+}
+export interface Cookbook_api_tag_v1_create_res {
+  /**
+   * 新标签 id
+   */
+
+  id?: number;
+}
+export interface Cookbook_api_tag_v1_delete_res {
+  /**
+   * 受影响菜谱数量（被移除该标签的菜谱数）
+   */
+
+  affectedRecipes?: number;
+}
 export interface Cookbook_api_tag_v1_get_list_res {
   /**
    * 标签列表
@@ -357,6 +378,14 @@ export interface Cookbook_api_tag_v1_get_list_res {
 
   list?: Cookbook_internal_model_tag_item[];
 }
+export interface Cookbook_api_tag_v1_get_manage_list_res {
+  /**
+   * 标签管理列表
+   */
+
+  list?: Cookbook_internal_model_tag_manage_item[];
+}
+export type Cookbook_api_tag_v1_update_res = object;
 export interface Cookbook_internal_model_favorite_folder {
   /**
    * 收藏夹 id
@@ -589,4 +618,26 @@ export interface Cookbook_internal_model_tag_item {
    */
 
   sort?: number;
+}
+export interface Cookbook_internal_model_tag_manage_item {
+  /**
+   * 标签 id
+   */
+
+  id?: number;
+  /**
+   * 标签名
+   */
+
+  name?: string;
+  /**
+   * 展示排序
+   */
+
+  sort?: number;
+  /**
+   * 使用该标签的菜谱数量（不含已删除菜谱）
+   */
+
+  recipeCount?: number;
 }

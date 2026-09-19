@@ -1,147 +1,213 @@
-# Cookbook · 全栈项目模板
+<div align="center">
 
-GoFrame v2（Go）后端 + Nuxt 4（@nuxt/ui）前端的全栈单仓初始化模板：仅保留 Hello 示例接口与最小页面，数据库 `init.sql` 不含任何业务表。新项目请从本模板起步，业务模块按 [AGENTS.md](AGENTS.md) 的「新增模块流程」生长。
+# 🍳 Cookbook · 家庭菜谱管理
 
-## 技术栈
+**自托管的个人 / 家庭菜谱中心：菜谱管理 · 多收藏夹 · 家庭成员口味 · 每周菜单编排**
+
+Go 1.26 + GoFrame v2 后端 · Nuxt 4 前端 · 单镜像一键部署 · PostgreSQL / SQLite 双支持
+
+[![CI](https://github.com/z91300/cookbook/actions/workflows/build.yml/badge.svg)](https://github.com/z91300/cookbook/actions/workflows/build.yml)
+![Docker Image](https://img.shields.io/badge/image-ghcr.io%2Fz91300%2Fcookbook-2496ED?logo=docker&logoColor=white)
+![Go](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)
+![Nuxt](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white)
+![Database](https://img.shields.io/badge/DB-PostgreSQL%20%7C%20SQLite-336791?logo=postgresql&logoColor=white)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](./LICENSE)
+
+如果这个项目对你有帮助，欢迎点一个 **Star ⭐** 支持一下，也欢迎提 Issue / PR 交流～
+
+</div>
+
+<div align="center">
+
+| 首页 · 卡片墙与筛选 | 菜谱详情 · 结构化步骤图文 |
+| :---: | :---: |
+| ![首页](docs/screenshots/home.png) | ![菜谱详情](docs/screenshots/detail.png) |
+| **每周菜单编排 · 周历拖拽** | **标签管理 · 用量统计** |
+| ![每周菜单编排](docs/screenshots/scheduling.png) | ![标签管理](docs/screenshots/settings.png) |
+
+</div>
+
+---
+
+## ✨ 功能特性
+
+### 🥘 菜谱管理
+
+- **卡片墙浏览**：封面图 + 一句话简介 + 难度角标 + 分类标签，无限滚动分页加载
+- **多维筛选**：关键词搜索（菜名 / 简介）、分类标签、用餐时段（早餐 / 午餐 / 晚餐 / 加餐），实时显示结果数，一键清除筛选
+- **结构化详情**：难度 / 耗时 / 热量 / 人份 / 适合时段一目了然；食材清单（名称 + 用量 + 可选标记）、所需炊具、分步骤图文（每步可配多图）、小贴士
+- **全功能编辑器**：食材行与步骤均支持**拖拽排序**，步骤支持多图上传，炊具从预设清单勾选
+- **右键快捷菜单**：复制 AI 生图提示词（按设置页模板逐菜谱渲染后进剪贴板）、编辑、删除（带二次确认）
+- **亮 / 暗色主题**：顶栏一键切换，也可跟随系统偏好
+
+### ⭐ 多收藏夹收藏
+
+- 任意创建多个收藏夹，同一道菜可**同时收进多个收藏夹**；卡片右上角爱心实时显示被收藏次数
+- 收藏夹页支持新建 / 重命名 / 删除，展开即可浏览夹内菜谱并管理
+
+### 👨‍👩‍👧 家庭成员
+
+- 记录成员角色（预置 + 自定义）与口味、忌口、过敏等饮食备注
+- 为「按家人口味编排每周菜单」提供数据基础
+
+### 📅 每周菜单编排
+
+- **周历视图** × 每日四餐段（早 / 午 / 晚 / 加餐），一格可排多道菜
+- 上 / 下一周切换、今天高亮
+- 内置菜谱选择器（带搜索）快速加菜，已排条目可**拖拽换日 / 换餐段**
+- 每条编排可单独填写份量与备注
+
+### 🏷️ 标签 & ⚙️ 设置
+
+- 内置 16 个预置标签（荤菜 / 素菜 / 川粤湘鲁菜系…），支持新增、重命名、删除（删除前提示有多少菜谱正在使用，确认后从这些菜谱移除该标签、菜谱本身保留）
+- 通用设置为 key-value 存储，内置 **AI 生图提示词模板**：`{recipe.*}` 变量占位、推荐模板一键填入，在菜谱右键「复制生图提示词」时自动替换为对应菜谱内容
+
+### 🖼️ 图片与附件
+
+- 上传的栅格图自动重编码为 **WebP**（无体积收益时保留原格式），内容 `sha256` 去重
+- 文件本体直接存数据库（PostgreSQL `BYTEA`），**备份 = 全库备份**，无需单独的附件磁盘卷
+- 列表小图统一走 `?w=360` 缩略图（服务端内存缓存 + ETag 长缓存），打开快、流量省
+
+### 🧰 工程特性（开发者向）
+
+- GoFrame v2 自动生成 **OpenAPI**（`/api.json`）与 Swagger UI，接口即文档
+- 全链路代码生成：`gf gen ctrl / service / dao` → **worma** 据 OpenAPI 生成前端 TS 客户端，前后端类型天然一致
+- 内置统一响应信封、多值查询参数归一、分页模型、无限加载、弹窗滚动锁与移动端返回手势关弹窗等通用设施
+- **单镜像部署**：Nuxt SSR 与 Go API 同容器双端口，GitHub Actions 自动构建推送 GHCR，CI 零 Secret 依赖
+
+## 🧱 技术栈
 
 | 层 | 技术 | 说明 |
 | --- | --- | --- |
-| 后端 | Go 1.26 / GoFrame v2.10 | HTTP 服务、OpenAPI（`/api.json`）与 Swagger（`/swagger`）自动生成 |
-| 数据库 | PostgreSQL 18 | 外部实例（链接在 `config.yaml`，见 `config.example.yaml` 模板），结构由 `manifest/init.sql` 维护 |
-| 前端 | Nuxt 4 / @nuxt/ui v4 / TailwindCSS v4 | SSR + 组件库 |
-| API 客户端 | wormajs | 读取后端 OpenAPI 自动生成前端 TS 请求代码（`web/app/api/`） |
+| 后端 | Go 1.26 / GoFrame v2.10 | HTTP 服务、参数校验、OpenAPI / Swagger 自动生成 |
+| 数据库 | PostgreSQL 18（或 SQLite） | 结构由幂等脚本 `manifest/init.sql` 维护 |
+| 前端 | Nuxt 4 / @nuxt/ui v4 / TailwindCSS v4 | SSR 渲染 |
+| API 客户端 | wormajs | 读取后端 OpenAPI 自动生成 TS 请求代码 |
 
-## 目录结构
+## 🚀 快速开始
 
-```
-cookbook/
-├── main.go                  # 后端入口
-├── config.example.yaml      # 后端本地配置模板（复制为 config.yaml 填入真实链接；真实配置不入 git）
-├── api/                     # 接口定义层（每资源一个目录，v1 版本子目录）
-│   └── hello/
-├── internal/
-│   ├── cmd/                 # 启动命令与路由注册
-│   ├── consts/              # 全局常量
-│   ├── controller/          # 控制器：组合 api 层接口并转发 logic
-│   ├── handler/             # 全局中间件（统一响应信封 / 多值查询参数归一）
-│   ├── logic/               # 业务逻辑实现（service 接口的实现方）
-│   ├── model/               # 请求/响应/实体模型（字段唯一定义点）
-│   ├── dao/                 # 数据访问（gf gen dao 生成，勿手改）
-│   └── service/             # 服务接口（gf gen service 生成，勿手改）
-├── manifest/
-│   ├── init.sql             # 数据库结构初始化脚本
-│   └── config/config.yaml   # 部署环境配置
-├── hack/                    # GoFrame CLI 构建配置（gen dao 链接等）
-├── resource/                # 静态资源/模板
-├── utility/                 # 通用工具函数
-└── web/                     # 前端（Nuxt 4）
-    ├── app/api/             # worma 生成的 API 客户端（request.ts 信封拆包）
-    ├── app/pages/           # 路由页面
-    ├── app/composables/     # 组合式函数（如 useInfiniteList 分页加载）
-    ├── nuxt.config.ts       # devServer 绑定 127.0.0.1，/api 代理到后端 8000
-    └── worma.config.ts      # API 代码生成配置（operationId 拆分插件）
-```
+### 方式一：Docker 一键部署（推荐）
 
-## 快速开始
+镜像：`ghcr.io/z91300/cookbook:latest`，单容器同时运行前端 SSR（3000）与后端 API（8000）。
 
-### 后端（端口 8000）
-
-前置要求：Go 1.26+；PostgreSQL 可达（复制 `config.example.yaml` 为 `config.yaml` 并填入数据库链接，首次启动前用 `manifest/init.sql` 初始化库结构，也可让驱动按需建表）。
+**SQLite（最简单，本地单机）**
 
 ```bash
-# 仓库根目录
+git clone https://github.com/z91300/cookbook.git
+cd cookbook
+DB_TYPE=sqlite docker compose up -d --wait
+```
+
+**PostgreSQL**
+
+```bash
+DB_TYPE=postgres DB_HOST=<数据库地址> DB_PORT=5432 \
+DB_USER=root DB_PASSWORD=<密码> DB_NAME=cookbook \
+  docker compose up -d --wait
+```
+
+启动后访问：
+
+- 前端：`http://127.0.0.1:8080`（`COOKBOOK_WEB_PORT` 可改）
+- API：`http://127.0.0.1:8000`（`COOKBOOK_API_PORT` 可改）
+
+> 数据存在哪里？
+> - PostgreSQL 模式：全部在外部数据库；SQLite 模式：库文件在 `DB_DATA_PATH`（默认 `/data/cookbook.db`，建议挂卷持久化）。
+> - 图片等附件二进制直接入库，没有额外的附件目录，备份只需备库。
+
+### 方式二：本地开发
+
+前置要求：Go 1.26+、Node.js 20+ / pnpm、可访问的 PostgreSQL（或改用 SQLite）。
+
+```bash
+# 1. 后端（端口 8000）：复制配置模板并填入数据库链接
+cp config.example.yaml config.yaml
+psql "<你的数据库链接>" -f manifest/init.sql   # 初始化表结构（幂等脚本）
 go run .
-```
 
-启动后：
-
-- 健康检查：`GET http://127.0.0.1:8000/hello` → `Hello World!`
-- OpenAPI：`http://127.0.0.1:8000/api.json`
-- Swagger UI：`http://127.0.0.1:8000/swagger`
-
-### 前端（端口 3000）
-
-```bash
+# 2. 前端（端口 3000，/api 自动代理到 127.0.0.1:8000）
 cd web
 pnpm install
 pnpm dev
 ```
 
-访问 `http://127.0.0.1:3000`，首页会调用 `GET /hello` 做前后端连通性自检（后端未启动时显示错误提示）。开发期 `/api` 由 Nuxt devProxy 代理到 `http://127.0.0.1:8000`。
+访问 `http://127.0.0.1:3000`。首次启动可在首页「+ 新建菜谱」添加第一道菜。
 
-### 生产构建（可选）
+### API 文档
 
-```bash
-cd web && pnpm build   # 前端产物输出到 web/.output/
-```
+后端启动后可直接访问：
 
-## API 开发流程（后端 → 前端全链路）
+| 地址 | 说明 |
+| --- | --- |
+| `/api.json` | OpenAPI 3 规范（前端客户端即由此生成） |
+| `/swagger` | Swagger UI 在线调试 |
+| `/hello` | 健康检查 |
 
-1. **定义**：在 `internal/model/<领域>.go` 定义请求/响应结构（字段 + 校验 + `dc` 描述）
-2. **接口**：在 `api/<资源>/v1/` 定义 Req/Res（组合 model 结构，`g.Meta` 必须带 `operationId`，规范见 [AGENTS.md](AGENTS.md)）
-3. **实现**：`internal/logic/<资源>/` 写业务逻辑，`internal/controller/<资源>/` 组合转发
-4. **注册**：`internal/cmd/cmd.go` 的 `group.Bind(...)` 挂载控制器
-5. **生成**：后端运行中执行前端生成
-   ```bash
-   gf gen ctrl -m     # controller 骨架（必须带 -m）
-   gf gen service     # service 接口
-   cd web && pnpm api:gen   # 生成前端 TS 客户端（需后端已启动）
-   ```
+## ⚙️ 环境变量
 
-## 数据库流程
-
-1. 修改 `manifest/init.sql`（字段含义写在行尾 `--` 注释，gen dao 会读取）
-2. 初始化/重建库：在 PostgreSQL 上整体执行 `init.sql`（脚本幂等，`CREATE TABLE IF NOT EXISTS`；可用 psql：`psql "<你的链接>" -f manifest/init.sql`）
-3. 生成数据层：`gf gen dao`（读取 `hack/config.yaml` 的数据库链接）
-
-## 配置与安全
-
-本地开发用配置文件（凭据不入 git）：`config.yaml` / `hack/config.yaml`（复制 `*.example.yaml` 填入真实链接）。
-
-**Docker 部署不需要配置文件**：运行时环境变量注入数据库（见下方「Docker 部署」），镜像内无任何凭据。
-
-## CI/CD（GitHub Actions）
-
-`.github/workflows/build.yml`：push 到 `main` / 打 `v*` 标签 / 手动触发时自动构建单镜像（前端 SSR + 后端 API）并推送 GHCR（`ghcr.io/<owner>/cookbook`，tag：`latest` + short-sha，标签推送另有版本 tag）。CI 不需要任何 Secret（数据库凭据运行时注入）。
-
-**推送前人工本地验证**（CI 不跑自测，约定）：
-
-```bash
-docker build -t cookbook:latest .
-uv run python scripts/ci_selftest.py cookbook:latest   # 隔离栈自测：/api/tags、/api/recipes、SSR 首页
-```
-
-## Docker 部署
-
-数据库通过环境变量注入（装配逻辑 `internal/cmd/dbenv.go`），无需挂载配置文件：
+数据库连接运行时注入（装配逻辑 `internal/cmd/dbenv.go`），**镜像内无任何配置文件与凭据**：
 
 | 变量 | 说明 | 默认 |
 | --- | --- | --- |
 | `DB_TYPE` | `postgres`（别名 `pg`）或 `sqlite` | `postgres` |
-| `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASSWORD` / `DB_NAME` | postgres 连接参数 | 5432 / root / cookbook |
-| `DB_DATA_PATH` | sqlite 库文件路径（`DB_TYPE=sqlite` 时） | `/data/cookbook.db`（compose 已挂卷持久化） |
+| `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASSWORD` / `DB_NAME` | PostgreSQL 连接参数 | 5432 / root / cookbook |
+| `DB_DATA_PATH` | SQLite 库文件路径（`DB_TYPE=sqlite` 时） | `/data/cookbook.db` |
+| `COOKBOOK_IMAGE` | compose 使用的镜像 | `ghcr.io/z91300/cookbook:latest` |
+| `COOKBOOK_WEB_PORT` | 前端 SSR 宿主机端口 | `8080` |
+| `COOKBOOK_API_PORT` | 后端 API 宿主机端口 | `8000` |
 
-```bash
-# PostgreSQL
-DB_TYPE=postgres DB_HOST=<host> DB_PORT=25432 DB_USER=root DB_PASSWORD=<pw> DB_NAME=cookbook \
-  docker compose up -d --wait
+## 🗂️ 目录结构
 
-# SQLite（本地单机）
-DB_TYPE=sqlite docker compose up -d --wait
+```
+cookbook/
+├── main.go                  # 后端入口
+├── api/                     # 接口定义层（每资源一个目录，v1 版本子目录）
+├── internal/
+│   ├── cmd/                 # 启动、路由注册与 DB 环境变量装配
+│   ├── controller/          # 控制器：组合 api 层接口并转发 logic
+│   ├── logic/               # 业务逻辑实现
+│   ├── model/               # 请求/响应/实体模型（字段唯一定义点）
+│   ├── handler/             # 全局中间件（统一响应信封 / 多值参数归一）
+│   ├── dao/  service/       # 数据访问与服务接口（gf gen 生成）
+│   └── ...
+├── manifest/init.sql        # 数据库结构初始化（幂等，含预置标签）
+├── scripts/                 # 镜像构建 / 自测脚本
+├── web/                     # Nuxt 4 前端
+│   ├── app/pages/           # 首页 / 收藏夹 / 成员 / 编排 / 设置
+│   ├── app/api/             # worma 生成的 TS 客户端
+│   └── app/composables/     # 无限加载、弹窗返回手势等
+└── .github/workflows/       # CI：构建镜像 → 推送 GHCR
 ```
 
-- 一键构建（本地）：`uv run python scripts/docker_build_push.py -v <版本> [-r <registry前缀>]`（需本机 Docker 引擎健康）
-- CI 产物直接可用：`docker compose pull` 后按上面设 DB_* 环境变量 `docker compose up -d --wait`。
-- 编排：根目录 `docker-compose.yml`，默认镜像 `ghcr.io/z91300/cookbook:latest`，单容器暴露 `COOKBOOK_WEB_PORT`（默认 8080 → 3000，前端 SSR）与 `COOKBOOK_API_PORT`（默认 8000，后端 API），变量全部带默认值、不用 `.env`。
+## 🗺️ Roadmap
 
-## 模板内容说明
+- [ ] 用户账号体系（`users` 表结构已预留）
+- [ ] AI 生成菜谱（`recipes.source=ai`、`ai_generations` 记录表已预留）
+- [ ] 结合家庭成员口味 / 忌口，智能推荐每周菜单
+- [ ] 从编排菜单一键生成采购清单
 
-模板内置的最小示例（新项目可保留作连通性自检，或删除）：
+## 🤝 参与贡献
 
-- **后端**：`api/hello/` + `internal/controller/hello/` —— `GET /hello` 返回纯文本 `Hello World!`（演示「不包统一信封」的直出响应）
-- **前端**：`web/app/pages/index.vue` —— 首页连通性自检卡片；`web/app/api/hello.ts` —— 生成的客户端调用示例
-- **通用设施**（必须保留）：统一响应信封、多值查询参数归一（`internal/handler/`）、分页模型（`internal/model/pagination.go`）、无限加载组合式（`web/app/composables/useInfiniteList.ts`）、API 客户端信封拆包（`web/app/api/request.ts`）
+欢迎提 Issue 与 PR！项目约定（分层职责、operationId 规范、代码生成流程、字段唯一定义点等）集中在 [AGENTS.md](AGENTS.md)，人工开发与 AI 协作共同遵守，动手前建议先读一遍。
 
-## 工程规范
+## 📄 开源协议
 
-所有 AI 协作与人工开发共用的强制约定（operationId、分层职责、字段唯一定义点、统一响应信封、生成文件不可手改等）见 [AGENTS.md](AGENTS.md)。
+本项目基于 **[GNU AGPL-3.0](LICENSE)** 协议开源：
+
+- 个人使用、学习、修改、自托管部署完全自由
+- 若基于本项目搭建网络服务或二次开发并对外提供，需按同一协议开源相应源码（AGPL-3.0 第 13 条网络条款）
+- 分发时请保留原始版权与许可声明
+
+## ⭐ Star History
+
+觉得不错的话，点个 Star 让我知道 👇
+
+[![Star History Chart](https://api.star-history.com/svg?repos=z91300/cookbook&type=Date)](https://star-history.com/#z91300/cookbook&Date)
+
+---
+
+<div align="center">
+
+**Cookbook** · 用技术管理一日三餐 🍚
+
+</div>

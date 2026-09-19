@@ -24,4 +24,5 @@ hack/config.yaml
 
 # SQLite 数据库文件（数据不入库，结构由 manifest/init.sql 维护）
 manifest/*.db
-manifest/*.db*
+manifest/*.db*main.exe~
+*.exe~

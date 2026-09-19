@@ -1,18 +1,19 @@
 # syntax=docker/dockerfile:1
 # ============================================================================
-# Cookbook 单镜像（multi-stage）：一个容器内同时运行
-#   Nuxt 前端 SSR（node，容器内 3000 端口）与 GoFrame 后端（容器内 8000 端口），
-# 前端 /api 反代指向容器回环 127.0.0.1:8000（同一进程组，见 /entrypoint.sh）。
-# 宿主机按需映射两个端口（见 docker-compose.yml 的 COOKBOOK_WEB_PORT /
-# COOKBOOK_API_PORT）。
-# 构建命令（也可直接用 scripts/docker_build_push.py 一键构建+自测+推送）：
+# Cookbook 单镜像（multi-stage，三个构建阶段 + 精简 alpine 运行时）：
+#   阶段 1  pnpm + nuxt build（构建产物 .output，依赖层不进运行时）
+#   阶段 2  golang:alpine 编译 Go 二进制（CGO_ENABLED=0 静态链接，~15MB）
+#   阶段 3  node:24-alpine 运行时：只拷 .output + 二进制 + 配置
+# 一个容器内同时跑 Nuxt SSR（3000）与 GoFrame 后端（8000），前端 /api 反代
+# 指向容器回环 127.0.0.1:8000（同一进程组，见 /entrypoint.sh）。
+# 宿主机按需映射两端口（见 docker-compose.yml 的 COOKBOOK_WEB_PORT/COOKBOOK_API_PORT）。
+# 构建命令（也可直接用 scripts/docker_build_push.py 一键构建）：
 #   docker build -t cookbook:latest .
 #   换依赖源：docker build --build-arg GOPROXY= --build-arg NPM_REGISTRY= -t cookbook:latest .
 # ============================================================================
 
-ARG NODE_IMAGE=node:22-alpine
+ARG NODE_IMAGE=node:24-alpine
 ARG GO_IMAGE=golang:1.27-alpine
-ARG RUNTIME_IMAGE=node:22-alpine
 
 # ----------------------------------------------------------------------------
 # 阶段 1：前端构建（pnpm + nuxt build）
@@ -38,7 +39,7 @@ COPY web/ ./
 RUN pnpm build
 
 # ----------------------------------------------------------------------------
-# 阶段 2：后端构建（pgsql 驱动基于 lib/pq，纯 Go，CGO 可关）
+# 阶段 2：后端构建（pgsql 驱动基于 lib/pq，纯 Go，CGO 可关 → 静态二进制无运行时依赖）
 # ----------------------------------------------------------------------------
 FROM ${GO_IMAGE} AS api-build
 WORKDIR /src
@@ -55,11 +56,11 @@ COPY utility/ ./utility/
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/cookbook .
 
 # ----------------------------------------------------------------------------
-# 阶段 3：合并运行镜像（node 跑前端 SSR，Go 二进制跑后端）
+# 阶段 3：运行时（node:24-alpine，~150MB；node_modules 构建依赖不进此层）
 # 注意：数据库在外部 PostgreSQL（链接见 config.yaml）；附件本体存库
 # （attachments.content BLOB）；manifest/init.sql 仅随镜像留档。
 # ----------------------------------------------------------------------------
-FROM ${RUNTIME_IMAGE}
+FROM ${NODE_IMAGE}
 WORKDIR /app
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \

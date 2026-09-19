@@ -106,7 +106,14 @@ cp hack/config.example.yaml hack/config.yaml  # 填入 gen dao 链接
 
 ## CI/CD（GitHub Actions）
 
-`.github/workflows/build.yml`：push 到 `main` / 打 `v*` 标签 / 手动触发时自动构建单镜像（前端 SSR + 后端 API）→ 隔离 compose 栈自测（`/api/tags`、`/api/recipes`、首页 SSR）→ 推送 GHCR（`ghcr.io/<owner>/cookbook`，tag：`latest` + short-sha，标签推送另有版本 tag）。
+`.github/workflows/build.yml`：push 到 `main` / 打 `v*` 标签 / 手动触发时自动构建单镜像（前端 SSR + 后端 API）并推送 GHCR（`ghcr.io/<owner>/cookbook`，tag：`latest` + short-sha，标签推送另有版本 tag）。
+
+**推送前人工本地验证**（CI 不跑自测，约定）：
+
+```bash
+docker build -t cookbook:latest .
+uv run python scripts/ci_selftest.py cookbook:latest   # 隔离栈自测：/api/tags、/api/recipes、SSR 首页
+```
 
 仓库需配置 1 个 Secret（Settings → Secrets and variables → Actions）：
 

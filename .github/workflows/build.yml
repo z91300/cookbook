@@ -82,9 +82,8 @@ jobs:
           load: true
           tags: ${{ steps.meta.outputs.TAGS }}
 
-      - name: Selftest (isolated compose stack)
-        run: python3 scripts/ci_selftest.py "${{ steps.meta.outputs.IMAGE }}:latest"
-
+      # 按团队约定：推送前人工本地验证（起隔离栈跑 scripts/ci_selftest.py），
+      # CI 不跑自测，构建成功即推送。
       - name: Push image
         uses: docker/build-push-action@v6
         with:

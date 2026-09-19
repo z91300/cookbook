@@ -127,8 +127,9 @@ type GetReq struct {
 ## Docker 部署 / CI
 
 - GitHub Actions（`.github/workflows/build.yml`）：push main / 打 v* 标签时自动构建镜像
-  → 隔离栈自测（`scripts/ci_selftest.py`）→ 推送 GHCR。需仓库 Secret `PROD_DB_LINK`
-  （生产库链接，CI 构建时生成 config.prod.yaml，凭据不落仓库）。
+  → 推送 GHCR。需仓库 Secret `PROD_DB_LINK`（生产库链接，CI 构建时生成
+  config.prod.yaml，凭据不落仓库）。推送前人工本地验证：起隔离栈跑
+  `python scripts/ci_selftest.py cookbook:latest`（CI 不跑自测）。
 - 一键构建/自测/推送（本地）：`uv run python scripts/docker_build_push.py -v <版本> [-r <registry前缀>]`
   （本机无 python 时用 uv；需 Docker 引擎健康，构建前填好 config.prod.yaml）。
   默认流程 = 构建单个镜像 `cookbook`（容器内同时跑 Nuxt SSR 与 GoFrame 后端，暴露 3000/8000
@@ -138,7 +139,7 @@ type GetReq struct {
   `COOKBOOK_WEB_PORT`、`COOKBOOK_API_PORT`、`GOPROXY`、`NPM_REGISTRY`）均来自环境变量且带默认值。
   单服务 `cookbook` 对外暴露两个端口：`COOKBOOK_WEB_PORT`（默认 8080 → 容器 3000，前端 SSR）、
   `COOKBOOK_API_PORT`（默认 8000 → 容器 8000，后端 API）。
-- 镜像：根目录 `Dockerfile` 多阶段单 target `cookbook`（web-build + api-build 合并进 `node:22-alpine`
+- 镜像：根目录 `Dockerfile` 多阶段单 target `cookbook`（web-build + api-build 合并进 `node:24-alpine`
   运行时，`/entrypoint.sh` 同进程拉起 `./cookbook` 与 node SSR），构建上下文受 `.dockerignore` 约束
   （后端连接外部 PostgreSQL，镜像内不再生成库文件，`manifest/init.sql` 仅随镜像留档）。
 - 生产 `/api` 代理：容器内前端与后端同机，`web/nuxt.config.ts` 的 `nitro.routeRules` 固定反代

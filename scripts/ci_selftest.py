@@ -28,9 +28,16 @@ def fail(msg: str) -> None:
     sys.exit(1)
 
 
-def sh(*args: str, check: bool = True, capture: bool = False, timeout: int = None):
-    return subprocess.run(args, cwd=ROOT, check=check,
+def sh(*args: str, check: bool = True, capture: bool = False, timeout: int = None,
+       env: dict = None):
+    proc = subprocess.run(args, cwd=ROOT, check=False, env=env,
                           capture_output=capture, text=True, timeout=timeout)
+    if proc.returncode != 0:
+        out = (proc.stdout or "") + (proc.stderr or "")
+        print(out, flush=True)
+        if check:
+            sys.exit(1)
+    return proc
 
 
 def pick_free_port(preferred: int) -> int:

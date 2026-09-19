@@ -56,14 +56,18 @@ def main() -> None:
         fail("用法: ci_selftest.py <image> [port]")
     image = sys.argv[1]
     port = pick_free_port(int(sys.argv[2]) if len(sys.argv) > 2 else 8080)
-    env = {**os.environ, "COOKBOOK_IMAGE": image,
-           "COOKBOOK_WEB_PORT": str(port), "COOKBOOK_API_PORT": "18080"}
-    compose = lambda *a: sh("docker", "compose", "-f", os.path.join(ROOT, "docker-compose.yml"),
-                            "-p", PROJECT, *a)
+
+    def compose(*args: str, env: dict = None, timeout: int = None,
+                check: bool = True) -> subprocess.CompletedProcess:
+        return sh("docker", "compose", "-f", os.path.join(ROOT, "docker-compose.yml"),
+                  "-p", PROJECT, *args, env=env, timeout=timeout, check=check)
+
+    run_env = {**os.environ, "COOKBOOK_IMAGE": image,
+               "COOKBOOK_WEB_PORT": str(port), "COOKBOOK_API_PORT": "18080"}
     log(f"起隔离栈 {PROJECT}（宿主机 {port} → 容器 3000）")
 
     try:
-        compose("up", "-d", "--wait", "--wait-timeout", "300", env=env)
+        compose("up", "-d", "--wait", "--wait-timeout", "300", env=run_env)
         base = f"http://127.0.0.1:{port}"
         deadline = time.time() + 120
         # 后端 API
@@ -74,6 +78,7 @@ def main() -> None:
                     break
             except Exception:
                 if time.time() > deadline:
+                    compose("logs", "--tail", "40", env=run_env)
                     fail(f"GET {base}/api/tags 超时")
                 time.sleep(2)
         data = json.loads(body)

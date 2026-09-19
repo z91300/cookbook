@@ -11,7 +11,7 @@
 # ============================================================================
 
 ARG NODE_IMAGE=node:22-alpine
-ARG GO_IMAGE=golang:1.26-alpine
+ARG GO_IMAGE=golang:1.27-alpine
 ARG RUNTIME_IMAGE=node:22-alpine
 
 # ----------------------------------------------------------------------------

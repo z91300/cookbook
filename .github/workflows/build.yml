@@ -1,0 +1,93 @@
+# GitHub Actions：构建单镜像（前端 SSR + GoFrame 后端）→ 隔离栈自测 → 推送 GHCR
+#
+# 所需仓库 Secret（Settings → Secrets and variables → Actions）：
+#   PROD_DB_LINK  生产数据库链接，GoFrame pgsql 格式：
+#                 pgsql:<user>:<password>@tcp(<host>:<port>)/<dbname>
+#
+# 触发：
+#   push 到 main 分支        → 构建 + 自测 + 推送（tag: latest + short-sha）
+#   手动 workflow_dispatch   → 可选指定版本号 tag
+#   push v* 标签             → tag: <版本> + latest
+
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "镜像版本 tag（如 v1.0.0）；留空仅推 latest + sha"
+        required: false
+        default: ""
+
+env:
+  REGISTRY_IMAGE: ghcr.io/${{ github.repository }}
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compute image tags
+        id: meta
+        run: |
+          IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}
+          TAGS="${IMAGE}:latest,${IMAGE}:${GITHUB_SHA::7}"
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            TAGS="${IMAGE}:${GITHUB_REF_NAME},${TAGS}"
+          fi
+          if [[ -n "${{ inputs.version }}" ]]; then
+            TAGS="${IMAGE}:${{ inputs.version }},${TAGS}"
+          fi
+          echo "IMAGE=${IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "TAGS=${TAGS}" >> "$GITHUB_OUTPUT"
+
+      # 真实生产配置不入 git：CI 从 Secret 生成 config.prod.yaml（Dockerfile COPY 为容器内 config.yaml）
+      - name: Write prod config from secret
+        run: |
+          mkdir -p config
+          cat > config.prod.yaml <<'EOF'
+          server:
+            address: ":8000"
+            openapiPath: "/api.json"
+            swaggerPath: "/swagger"
+
+          database:
+            default:
+              link: "${{ secrets.PROD_DB_LINK }}"
+          EOF
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: ${{ steps.meta.outputs.TAGS }}
+
+      - name: Selftest (isolated compose stack)
+        run: python3 scripts/ci_selftest.py "${{ steps.meta.outputs.IMAGE }}:latest"
+
+      - name: Push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.TAGS }}

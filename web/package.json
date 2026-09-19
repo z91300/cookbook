@@ -1,0 +1,27 @@
+{
+  "name": "cookbook-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "api:gen": "worma gen",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "api:init": "worma init"
+  },
+  "dependencies": {
+    "@nuxt/ui": "^4.11.1",
+    "nuxt": "^4.5.2",
+    "ofetch": "^1.5.1",
+    "tailwindcss": "^4.3.3"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.0",
+    "vue": "^3.5.40",
+    "vue-router": "^5.2.0",
+    "vue-tsc": "^3.3.11",
+    "wormajs": "^0.4.0"
+  }
+}

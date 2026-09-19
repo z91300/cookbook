@@ -1,0 +1,26 @@
+{{> comment}}
+import { request } from './request';
+import type * as ComponentTypes from './components';
+
+{{#each currentTag.apis}}
+{{> api-jsdoc}}
+type {{{name}}}Response = {{addNamespace response @root.componentNames}};
+type {{{name}}}Config = {
+  {{#if pathParameters}}pathParams: {{addNamespace pathParameters @root.componentNames}};
+  {{/if}}{{#if queryParameters}}params?: {{addNamespace queryParameters @root.componentNames}};
+  {{/if}}{{#if requestBody}}body?: {{addNamespace requestBody @root.componentNames}};
+  {{/if}}
+};
+
+{{#if (isReserved name)}}
+const {{{name}}}Fn = ({{#if pathParameters}}config: {{{name}}}Config{{else}}config: {{{name}}}Config = {}{{/if}}): Promise<{{{name}}}Response> => {
+  return request('{{{method}}}', '{{{path}}}', config);
+};
+export { {{{name}}}Fn as {{{name}}} };
+{{else}}
+export function {{{name}}}({{#if pathParameters}}config: {{{name}}}Config{{else}}config: {{{name}}}Config = {}{{/if}}): Promise<{{{name}}}Response> {
+  return request('{{{method}}}', '{{{path}}}', config);
+}
+{{/if}}
+
+{{/each}}

@@ -1,0 +1,13 @@
+# 本地开发配置模板
+# 复制本文件为 config.yaml 并填入实际数据库链接（config.yaml 已在 .gitignore）。
+# 数据库为外部 PostgreSQL；库结构由 manifest/init.sql 维护（幂等脚本，首次启动前整体执行一次）。
+
+server:
+  address: ":8000"
+  openapiPath: "/api.json"
+  swaggerPath: "/swagger"
+
+database:
+  default:
+    # GoFrame pgsql 链接格式：pgsql:<user>:<password>@tcp(<host>:<port>)/<dbname>
+    link: "pgsql:<user>:<password>@tcp(<host>:<port>)/<dbname>"

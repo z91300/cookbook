@@ -1,0 +1,18 @@
+# 生产镜像内置配置模板
+# 构建镜像时由 CI/本地脚本把真实配置 COPY 为容器内 config.yaml（见 Dockerfile）。
+# 真实链接含数据库凭据，不入 git：复制本文件为 config.prod.yaml 并填入实际值
+# （config.prod.yaml 已在 .gitignore 中）。
+#
+# 注意：GF_GCFG_DATABASE_DEFAULT_LINK 这类环境变量对 GoFrame 无效（实测被忽略，
+# 仅 GF_GCFG_FILE / GF_GCFG_PATH 有效），换库须替换本文件并挂载或配合 GF_GCFG_FILE
+# 指向，见 AGENTS.md「Docker 部署」节。
+
+server:
+  address: ":8000"
+  openapiPath: "/api.json"
+  swaggerPath: "/swagger"
+
+database:
+  default:
+    # GoFrame pgsql 链接格式：pgsql:<user>:<password>@tcp(<host>:<port>)/<dbname>
+    link: "pgsql:<user>:<password>@tcp(<host>:<port>)/<dbname>"

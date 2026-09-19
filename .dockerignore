@@ -1,0 +1,28 @@
+# 构建上下文瘦身：开发产物与本机数据一律不进镜像
+.git
+.gitattributes
+.gitignore
+AGENTS.md
+README.MD
+skills-lock.json
+Makefile
+hack/
+scripts/
+docker-compose.yml
+
+# 本机开发产物
+cookbook_server.exe
+*.exe
+*.log
+output/
+temp/
+
+# 本机数据库与备份（镜像内由 manifest/init.sql 生成全新空库）
+manifest/cookbook.db*
+
+# 前端依赖与构建缓存（容器内重新安装构建）
+web/node_modules
+web/.nuxt
+web/.output
+web/.worma-cache
+web/.gitignore

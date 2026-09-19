@@ -1,0 +1,13 @@
+# CLI tool, only in development environment.
+# https://goframe.org/docs/cli
+# 真实链接含数据库凭据，不入 git：复制本文件为 hack/config.yaml 并填入实际值。
+gfcli:
+  gen:
+    dao:
+      - link: "pgsql:<user>:<password>@tcp(<host>:<port>)/<dbname>"
+        descriptionTag: true
+
+  docker:
+    build: "-a amd64 -s linux -p temp -ew"
+    tagPrefixes:
+      - my.image.pub/my-app

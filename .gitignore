@@ -1,0 +1,28 @@
+.buildpath
+.hgignore.swp
+.project
+.orig
+.swp
+.idea/
+.settings/
+.vscode/
+bin/
+**/.DS_Store
+gf
+main
+main.exe
+output/
+manifest/output/
+temp/
+temp.yaml
+bin
+**/config/config.yaml
+
+# 真实配置含数据库凭据，不入库（入库 *.example 模板）
+config.yaml
+config.prod.yaml
+hack/config.yaml
+
+# SQLite 数据库文件（数据不入库，结构由 manifest/init.sql 维护）
+manifest/*.db
+manifest/*.db*

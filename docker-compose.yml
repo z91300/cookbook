@@ -1,0 +1,39 @@
+# Cookbook 生产编排（不使用 .env，全部变量带默认值，可用环境变量覆盖）
+#   COOKBOOK_IMAGE    镜像名（默认 cookbook:latest）
+#   COOKBOOK_WEB_PORT  前端 SSR 宿主机端口（默认 8080 → 容器 3000）
+#   COOKBOOK_API_PORT  后端 API 宿主机端口（默认 8000 → 容器 8000）
+#   COOKBOOK_DB_FILE  可选：容器内配置文件路径（配合挂载自定义 config.yaml 换库）
+#   NPM_REGISTRY / GOPROXY  构建期依赖源（仅 docker compose build 时生效）
+#
+# 单容器同时运行前端 SSR（3000）与后端 API（8000），对外暴露两个端口。
+# 常用命令：
+#   一键构建+自测+推送：python scripts/docker_build_push.py -v <版本> [-r <registry前缀>]
+#   本地起栈：          docker compose up -d --wait
+#   查看日志：          docker compose logs -f cookbook
+
+name: cookbook
+
+services:
+  cookbook:
+    image: ${COOKBOOK_IMAGE:-cookbook:latest}
+    build:
+      context: .
+      args:
+        GOPROXY: ${GOPROXY:-https://goproxy.cn,direct}
+        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com}
+    restart: unless-stopped
+    # 数据库链接沿用镜像内 config.yaml（外部 PostgreSQL）。换库两种方式：
+    #   1) 挂载自定义配置：- ./config.prod.yaml:/app/config.yaml:ro
+    #   2) 指定配置文件：  environment: GF_GCFG_FILE=/app/config.prod.yaml（配合上面挂载）
+    # 注：GF_GCFG_DATABASE_DEFAULT_LINK 这类变量对 GoFrame 无效（实测被忽略），勿用。
+    ports:
+      - "${COOKBOOK_WEB_PORT:-8080}:3000"
+      - "${COOKBOOK_API_PORT:-8000}:8000"
+    healthcheck:
+      # 两个端口都要通（前端 SSR + 后端 /api.json）才视为健康
+      test: ["CMD", "sh", "-c", "wget -q -O /dev/null http://127.0.0.1:3000/ && wget -q -O /dev/null http://127.0.0.1:8000/api.json"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+

@@ -1,0 +1,12 @@
+{{> comment}}
+export { ApiError, request, type ApiRequestConfig } from './request';
+{{#each tagedApis}}
+import * as {{{tag}}} from './{{{tag}}}';
+{{/each}}
+
+/** 按资源（operationId 前缀）分组的 API 命名空间，例如 `apis.skill.getList()` */
+export const apis = {
+{{#each tagedApis}}
+  {{{tag}}},
+{{/each}}
+};

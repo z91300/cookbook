@@ -1,0 +1,48 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+/* 设计基调：扁平、小圆角、无阴影（见需求） */
+:root {
+  --ui-radius: 0.375rem;
+}
+
+html {
+  color-scheme: light;
+
+  /* 常驻滚动条槽位。各页面内容高度不同（列表页滚动、首页/远行商人等不足一屏），
+     互切菜单时可视宽度会差一个滚动条（本机实测 15px），导致整页（含吸顶导航）
+     横向抖动 7.5px。预留槽位后所有页面可视宽度恒等，切换不再跳动。
+     注：与 app.vue 中 UApp 的 :scroll-body="false" 配套，二者必须同时存在。 */
+  scrollbar-gutter: stable;
+
+  /* 预留出的槽位不在 body 盒内，露出的是画布色（默认白），与页面底色
+     app.vue 根容器的 bg-zinc-50 不一致，会在右侧显出一条 14px 白边。
+     此处令画布与页面同色消除该边。 */
+  background-color: var(--color-zinc-50);
+
+  /* 例外兜底：超长不可断词（外部链接、英文串）不至于把页面撑出横向滚动条。
+     只影响「单个词比行还宽」的极端情况，不会掩盖容器级布局溢出。 */
+  overflow-wrap: break-word;
+}
+
+/* ---- 触屏（移动端）适配 ---- */
+
+/* 1) 触控目标：文字型小按钮在手机上给到 38px 高度，减少误触。
+      排除两类，否则会破坏既有布局：
+        · size-* 方形图标按钮（弹窗右上角关闭）
+        · absolute 定位按钮（搜索框内嵌清空按钮，高度受限于 h-9 的输入框） */
+@media (pointer: coarse) {
+  button:not([class*="size-"]):not([class*="absolute"]) {
+    min-height: 2.375rem;
+  }
+}
+
+/* 2) iOS Safari 聚焦表单控件时，若字号 < 16px 会自动放大整页（缩放后要手动缩回）。
+      含表格控件统一提到 16px 规避。 */
+@media (pointer: coarse) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}

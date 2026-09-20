@@ -92,6 +92,7 @@ jobs:
   #   2. 服务器 /opt/zspace/docker-compose.yml 的 image 指向本仓库推送的镜像；
   #   3. 镜像为私有包时，服务器需已 `docker login ghcr.io`（PAT 具备 read:packages）。
   # 只想到发版才部署：把下面的 if 改成 startsWith(github.ref, 'refs/tags/v')
+  # 注意：这里刻意不做 `docker image prune` —— 旧镜像要留着回滚。
   # ---------------------------------------------------------------------------
   deploy:
     needs: build
@@ -129,20 +130,10 @@ jobs:
           command_timeout: 10m
           script: |
             set -e
-            # 用 COMPOSE_FILE 指定编排文件即可，无需 cd：
-            #   项目目录自动取该文件所在目录（.env 也从那里读），
-            #   且该文件有顶层 `name: cookbook`，项目名与"进目录再执行"完全一致，
-            #   不会出现两套容器。
+            # COMPOSE_FILE 指定编排文件即可，无需 cd（项目目录/项目名与"进目录再执行"一致）。
+            # 只更新单个服务时在末尾加服务名，如 `... --wait --wait-timeout 300 cookbook`。
             export COMPOSE_FILE=/opt/zspace/docker-compose.yml
-
-            # 只更新单个服务时在命令末尾加服务名，例如：
-            #   docker compose up -d --pull always --wait --wait-timeout 300 cookbook
-            echo "== 拉取新镜像并重建容器（等 healthcheck 通过，最长 300s）=="
             if ! docker compose up -d --pull always --wait --wait-timeout 300; then
-              echo "== 部署失败，输出最近日志 =="
               docker compose logs --tail 50 || true
               exit 1
             fi
-            echo "== 当前状态 =="
-            docker compose ps --format 'table {{.Service}}\t{{.Image}}\t{{.Status}}'
-            # 刻意不做 `docker image prune` —— 旧镜像要留着回滚

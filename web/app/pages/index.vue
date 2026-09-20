@@ -193,6 +193,9 @@ interface EditForm {
   summary: string
   coverAttachmentId: number
   coverUrl: string
+  tips: string // 小贴士（注意事项）
+  // optional 只随数据原样回传（历史数据保留，避免回写丢字段），详情页不再单独标「可选」，
+  // 「可选」这类交代统一写在 tips 里
   ingredients: { name: string, amount: string, optional: number }[]
   tools: string[]
   steps: { title: string, content: string, media: number[] }[]
@@ -254,6 +257,7 @@ function openCreate() {
     id: 0,
     title: '',
     summary: '',
+    tips: '',
     coverAttachmentId: 0,
     coverUrl: '',
     ingredients: [{ name: '', amount: '', optional: 0 }],
@@ -280,6 +284,7 @@ function openEditFromDetail() {
     id: d.id!,
     title: d.title ?? '',
     summary: d.summary ?? '',
+    tips: d.tips ?? '',
     coverAttachmentId: d.coverAttachmentId ?? 0,
     coverUrl: d.coverUrl ?? '',
     ingredients: (d.ingredients ?? []).map(i => ({ ...i })),
@@ -306,6 +311,7 @@ async function openEdit(item: Cookbook_internal_model_recipe_list_item) {
       id: detail.id!,
       title: detail.title ?? '',
       summary: detail.summary ?? '',
+      tips: detail.tips ?? '',
       coverAttachmentId: detail.coverAttachmentId ?? 0,
       coverUrl: detail.coverUrl ?? '',
       ingredients: (detail.ingredients ?? []).map(i => ({ ...i })),
@@ -457,6 +463,7 @@ async function saveEdit() {
     const body = {
       title: editForm.value.title,
       summary: editForm.value.summary,
+      tips: editForm.value.tips,
       coverAttachmentId: coverId,
       ingredients: editForm.value.ingredients,
       tools: editForm.value.tools,
@@ -730,7 +737,6 @@ useModalBackClose(() => ctxMenu.value.item !== null, closeCtxMenu)
                 <ul class="detail-modal__ingredients">
                   <li v-for="(ing, i) in detail.ingredients" :key="i" class="detail-modal__ingredient">
                     <span class="detail-modal__ingredient-name" :title="ing.name">{{ ing.name }}</span>
-                    <span v-if="ing.optional" class="detail-modal__ingredient-opt">可选</span>
                     <span class="detail-modal__amount">{{ ing.amount }}</span>
                   </li>
                 </ul>
@@ -914,6 +920,19 @@ useModalBackClose(() => ctxMenu.value.item !== null, closeCtxMenu)
                   placeholder="一句话介绍这道菜…"
                   class="input w-full resize-y"
                 />
+              </div>
+
+              <!-- 小贴士（数据表 tips 字段）：注意事项、替代食材、「可选」这类交代都写这里 -->
+              <div>
+                <label class="form-label">小贴士</label>
+                <textarea
+                  v-model="editForm.tips"
+                  rows="3"
+                  maxlength="500"
+                  placeholder="注意事项、替代食材、哪些配料可选…例如「面糊别调太稀；不吃辣可省小米辣」"
+                  class="input w-full resize-y"
+                />
+                <p class="form-hint mt-1">{{ editForm.tips.length }}/500</p>
               </div>
 
               <!-- 分类（多选标签） -->
@@ -1176,7 +1195,6 @@ useModalBackClose(() => ctxMenu.value.item !== null, closeCtxMenu)
 .detail-modal__ingredients { @apply mt-2 grid grid-cols-1 gap-x-5 text-sm text-zinc-700 dark:text-zinc-300 sm:grid-cols-2 md:grid-cols-3; }
 .detail-modal__ingredient { @apply flex items-baseline gap-1.5 border-b border-dashed border-zinc-200 py-1.5 dark:border-zinc-700; }
 .detail-modal__ingredient-name { @apply min-w-0 flex-1 truncate; }
-.detail-modal__ingredient-opt { @apply shrink-0 text-xs text-zinc-400 dark:text-zinc-500; }
 .detail-modal__amount { @apply shrink-0 text-zinc-500 dark:text-zinc-400; }
 .detail-modal__tools { @apply mt-2 flex flex-wrap gap-2; }
 .detail-modal__steps { @apply mt-2 space-y-4; }

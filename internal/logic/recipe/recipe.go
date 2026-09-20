@@ -290,11 +290,11 @@ func (s *sRecipe) Update(ctx context.Context, in model.RecipeUpdateInput) (err e
 }
 
 // saveRecipeColumnsInput 标量列 + JSON 列 + 标签的共享写入集
-// （Create 与 Update 复用；空值不覆盖，TagIds nil=不修改）
+// （Create 与 Update 复用；空值不覆盖，TagIds nil=不修改；Tips 为指针：nil=不修改，指向空串=清空）
 type saveRecipeColumnsInput struct {
 	Title             string
 	Summary           string
-	Tips              string
+	Tips              *string
 	CoverAttachmentId int64
 	MealMask          int
 	Difficulty        int
@@ -315,8 +315,9 @@ func (s *sRecipe) saveRecipeColumns(ctx context.Context, recipeId int64, in save
 	if in.Summary != "" {
 		data.Summary = in.Summary
 	}
-	if in.Tips != "" {
-		data.Tips = in.Tips
+	// 小贴士：指针非 nil 即写入（允许传空串清空）
+	if in.Tips != nil {
+		data.Tips = *in.Tips
 	}
 	if in.CoverAttachmentId > 0 {
 		data.CoverAttachmentId = in.CoverAttachmentId
@@ -420,7 +421,7 @@ func (s *sRecipe) Create(ctx context.Context, in model.RecipeCreateInput) (id in
 	err = s.saveRecipeColumns(ctx, id, saveRecipeColumnsInput{
 		Title:             in.Title,
 		Summary:           in.Summary,
-		Tips:              in.Tips,
+		Tips:              &in.Tips, // 新建时总是写入（含空串）
 		CoverAttachmentId: in.CoverAttachmentId,
 		MealMask:          in.MealMask,
 		Difficulty:        in.Difficulty,

@@ -71,7 +71,7 @@ type RecipeUpdateInput struct {
 	Title             string                  `json:"title"               dc:"菜谱标题" v:"length:0,100#标题最长100"`
 	Summary           string                  `json:"summary"             dc:"一句话简介" v:"length:0,200#简介最长200"`
 	CoverAttachmentId int64                   `json:"coverAttachmentId"   dc:"封面附件 id，0=清除封面"`
-	Tips              string                  `json:"tips"                dc:"注意事项" v:"length:0,500#注意事项最长500"`
+	Tips              *string                 `json:"tips"                dc:"注意事项；不传=不修改，传空串=清空" v:"length:0,500#注意事项最长500"`
 	Ingredients       []RecipeIngredientInput `json:"ingredients"         dc:"食材列表，整体覆盖"`
 	Tools             []string                `json:"tools"               dc:"工具列表，整体覆盖"`
 	TagIds            []int                   `json:"tagIds"              dc:"标签 id 列表（分类），整体覆盖；nil=不修改 []=清空"`

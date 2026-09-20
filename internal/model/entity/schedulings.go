@@ -10,7 +10,6 @@ type Schedulings struct {
 	PlanDate  int    `json:"planDate"  orm:"plan_date"  description:""` //
 	Meal      int    `json:"meal"      orm:"meal"       description:""` //
 	RecipeId  int    `json:"recipeId"  orm:"recipe_id"  description:""` //
-	Servings  int    `json:"servings"  orm:"servings"   description:""` //
 	Note      string `json:"note"      orm:"note"       description:""` //
 	Sort      int    `json:"sort"      orm:"sort"       description:""` //
 	IsDeleted int    `json:"isDeleted" orm:"is_deleted" description:""` //

@@ -234,10 +234,10 @@ export function update(config: updateConfig): Promise<updateResponse> {
  * **RequestBody**
  * ```ts
  * type RequestBody = {
- *   // 收藏备注，可空
- *   note?: string
  *   // 食谱 id
  *   recipeId: number
+ *   // 收藏备注，可空
+ *   note?: string
  * }
  * ```
  *
@@ -260,15 +260,15 @@ type addItemConfig = {
   };
   body?: {
     /**
-     * 收藏备注，可空
-     */
-
-    note?: string;
-    /**
      * 食谱 id
      */
 
     recipeId: number;
+    /**
+     * 收藏备注，可空
+     */
+
+    note?: string;
   };
 };
 
@@ -359,12 +359,10 @@ export function removeItem(config: removeItemConfig): Promise<removeItemResponse
  *     coverAttachmentId?: number
  *     // 封面图访问 URL，空=无封面
  *     coverUrl?: string
- *     // 每份热量 kcal，0=未填
+ *     // 本菜谱总热量 kcal，0=未填
  *     calories?: number
  *     // 难度：0=未填 1=简单 2=中等 3=较难
  *     difficulty?: number
- *     // 份量(人份)，0=未填
- *     servings?: number
  *     // 耗时(分钟)，0=未填
  *     cookMinutes?: number
  *     // 被收藏次数（收藏夹数）

@@ -25,7 +25,6 @@ type SchedulingsColumns struct {
 	PlanDate  string //
 	Meal      string //
 	RecipeId  string //
-	Servings  string //
 	Note      string //
 	Sort      string //
 	IsDeleted string //
@@ -39,7 +38,6 @@ var schedulingsColumns = SchedulingsColumns{
 	PlanDate:  "plan_date",
 	Meal:      "meal",
 	RecipeId:  "recipe_id",
-	Servings:  "servings",
 	Note:      "note",
 	Sort:      "sort",
 	IsDeleted: "is_deleted",

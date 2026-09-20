@@ -33,7 +33,6 @@ type RecipesColumns struct {
 	MealMask          string //
 	Calories          string //
 	Difficulty        string //
-	Servings          string //
 	CookMinutes       string //
 	Source            string //
 	AiModel           string //
@@ -57,7 +56,6 @@ var recipesColumns = RecipesColumns{
 	MealMask:          "meal_mask",
 	Calories:          "calories",
 	Difficulty:        "difficulty",
-	Servings:          "servings",
 	CookMinutes:       "cook_minutes",
 	Source:            "source",
 	AiModel:           "ai_model",

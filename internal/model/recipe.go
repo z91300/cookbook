@@ -57,9 +57,8 @@ type RecipeDetail struct {
 	Ingredients       []RecipeIngredientInput `json:"ingredients" dc:"食材列表"`
 	Tools             []string                `json:"tools"             dc:"工具列表"`
 	Steps             []RecipeStepItem        `json:"steps"             dc:"步骤列表（保序）"`
-	Calories          int                     `json:"calories"          dc:"每份热量 kcal，0=未填"`
+	Calories          int                     `json:"calories"          dc:"本菜谱总热量 kcal，0=未填"`
 	Difficulty        int                     `json:"difficulty"        dc:"难度：0=未填 1=简单 2=中等 3=较难"`
-	Servings          int                     `json:"servings"          dc:"份量(人份)，0=未填"`
 	CookMinutes       int                     `json:"cookMinutes"       dc:"耗时(分钟)，0=未填"`
 	MealMask          int                     `json:"mealMask"          dc:"适合用餐时间位掩码：1=早餐 2=午餐 4=晚餐 8=加餐"`
 	Tags              []TagItem               `json:"tags"              dc:"菜谱标签列表"`
@@ -105,9 +104,8 @@ type RecipeListItem struct {
 	Summary           string    `json:"summary"               dc:"一句话简介"`
 	CoverAttachmentId int64     `json:"coverAttachmentId"     dc:"封面附件 id，0=无封面"`
 	CoverUrl          string    `json:"coverUrl"              dc:"封面图访问 URL，空=无封面"`
-	Calories          int       `json:"calories"              dc:"每份热量 kcal，0=未填"`
+	Calories          int       `json:"calories"              dc:"本菜谱总热量 kcal，0=未填"`
 	Difficulty        int       `json:"difficulty"            dc:"难度：0=未填 1=简单 2=中等 3=较难"`
-	Servings          int       `json:"servings"              dc:"份量(人份)，0=未填"`
 	CookMinutes       int       `json:"cookMinutes"           dc:"耗时(分钟)，0=未填"`
 	FavoriteCount     int       `json:"favoriteCount"         dc:"被收藏次数（收藏夹数）"`
 	Tags              []TagItem `json:"tags"                  dc:"菜谱标签列表"`

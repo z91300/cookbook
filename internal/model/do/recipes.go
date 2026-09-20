@@ -23,7 +23,6 @@ type Recipes struct {
 	MealMask          any //
 	Calories          any //
 	Difficulty        any //
-	Servings          any //
 	CookMinutes       any //
 	Source            any //
 	AiModel           any //

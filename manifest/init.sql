@@ -97,7 +97,7 @@ ALTER TABLE attachments ADD COLUMN IF NOT EXISTS content BYTEA;
 -- 表: recipes 食谱表
 -- 一条记录一道菜。正文不再单独存 markdown 列，内容由结构化列表承载：
 -- 食材/工具/步骤均为 JSON 文本列，随行读写，不做跨表 JOIN。
--- 结构化筛选字段（用餐时间位掩码/难度/耗时/热量/份量）单独成列；展示型
+-- 结构化筛选字段（用餐时间位掩码/难度/耗时/热量）单独成列；展示型
 -- 列表（食材/工具/步骤/标签）用 JSON 文本列。
 -- AI 可能生成不准确的内容：source/review_status 记录来源与人工核对状态。
 -- ----------------------------------------------------------------------------
@@ -112,9 +112,8 @@ CREATE TABLE IF NOT EXISTS recipes (
     tools               TEXT    NOT NULL DEFAULT '[]',        -- 工具 JSON 数组：["炒锅","砂锅"]，保序
     steps               TEXT    NOT NULL DEFAULT '[]',        -- 步骤 JSON 数组：[{"title":"焯水去腥","content":"第一步...","media":[1,2]}]，保序；title 可选，media 为 attachment id 数组
     meal_mask           INTEGER NOT NULL DEFAULT 0,           -- 适合用餐时间位掩码：1=早餐 2=午餐 4=晚餐 8=加餐，0=未填；可按位或叠加（一菜可属多餐）
-    calories            INTEGER NOT NULL DEFAULT 0,           -- 每份热量(kcal)，0=未填
+    calories            INTEGER NOT NULL DEFAULT 0,           -- 本菜谱总热量(kcal)，0=未填
     difficulty          INTEGER NOT NULL DEFAULT 0 CHECK (difficulty IN (0, 1, 2, 3)), -- 难度：0=未填 1=简单 2=中等 3=较难
-    servings            INTEGER NOT NULL DEFAULT 0,           -- 份量(人份)，0=未填
     cook_minutes        INTEGER NOT NULL DEFAULT 0,           -- 耗时(分钟)，0=未填
     source              TEXT    NOT NULL DEFAULT 'manual' CHECK (source IN ('manual', 'ai', 'import')), -- 来源：manual=手写 ai=AI 生成 import=导入
     ai_model            TEXT    NOT NULL DEFAULT '',          -- 生成模型名，source=ai 时有值
@@ -125,6 +124,8 @@ CREATE TABLE IF NOT EXISTS recipes (
 );
 CREATE INDEX IF NOT EXISTS idx_recipes_user   ON recipes (user_id, is_deleted);        -- 按作者查食谱
 CREATE INDEX IF NOT EXISTS idx_recipes_review ON recipes (review_status) WHERE review_status = 0; -- 待核对清单（PG 部分索引）
+-- 幂等删列：份量(人份)字段已从产品中移除（不展示、不参与任何逻辑），已存在的库同步删除
+ALTER TABLE recipes DROP COLUMN IF EXISTS servings;
 
 -- ----------------------------------------------------------------------------
 -- 表: tags 标签表（只建结构，不预置数据）
@@ -223,7 +224,6 @@ CREATE TABLE IF NOT EXISTS schedulings (
     plan_date   INTEGER NOT NULL,                              -- 编排日期 YYYYMMDD，如 20260916
     meal        INTEGER NOT NULL CHECK (meal IN (1, 2, 4, 8)),-- 用餐时段：1=早餐 2=午餐 4=晚餐 8=加餐
     recipe_id   INTEGER NOT NULL,                             -- 食谱 recipes.id
-    servings    INTEGER NOT NULL DEFAULT 0,                    -- 份量(人份)，0=用食谱默认
     note        TEXT    NOT NULL DEFAULT '',                   -- 编排备注
     sort        INTEGER NOT NULL DEFAULT 0,                    -- 同槽位内排序
     is_deleted  INTEGER NOT NULL DEFAULT 0,                    -- 0=正常 1=已删除
@@ -231,6 +231,8 @@ CREATE TABLE IF NOT EXISTS schedulings (
     updated_at  INTEGER NOT NULL DEFAULT 0                     -- 更新时间 Unix 秒
 );
 CREATE INDEX IF NOT EXISTS idx_schedulings_date ON schedulings (plan_date, is_deleted); -- 按日期区间查编排
+-- 幂等删列：编排的份量同样不再使用（原先「0=用食谱默认」已无来源）
+ALTER TABLE schedulings DROP COLUMN IF EXISTS servings;
 
 -- ----------------------------------------------------------------------------
 -- 表: settings 系统设置表（key-value 通用存储）

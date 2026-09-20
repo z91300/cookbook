@@ -415,7 +415,6 @@ async function onCellDrop(dayYyyymmdd: number, mealValue: number) {
         planDate: dayYyyymmdd,
         meal: mealValue as 1 | 2 | 4 | 8,
         recipeId: entry.recipeId!,
-        servings: entry.servings ?? 0,
         note: entry.note ?? '',
         sort: entry.sort ?? 0,
       },

@@ -61,8 +61,6 @@ import type * as ComponentTypes from './components';
  *     recipeTitle?: string
  *     // 食谱封面 URL，空=无封面
  *     coverUrl?: string
- *     // 份量(人份)，0=用食谱默认
- *     servings?: number
  *     // 编排备注
  *     note?: string
  *     // 同槽位内排序
@@ -110,8 +108,6 @@ export function getList(config: getListConfig = {}): Promise<getListResponse> {
  *   meal: 1 | 2 | 4 | 8
  *   // 食谱 id
  *   recipeId: number
- *   // 份量(人份)，0=用食谱默认
- *   servings?: number
  *   // 编排备注
  *   note?: string
  *   // 同槽位内排序
@@ -202,18 +198,16 @@ export { deleteFn as delete };
  * **RequestBody**
  * ```ts
  * type RequestBody = {
+ *   // 用餐时段：1=早餐 2=午餐 4=晚餐 8=加餐
+ *   meal: 1 | 2 | 4 | 8
+ *   // 食谱 id
+ *   recipeId: number
  *   // 编排备注
  *   note?: string
  *   // 同槽位内排序
  *   sort?: number
  *   // 编排日期 YYYYMMDD
  *   planDate: number
- *   // 用餐时段：1=早餐 2=午餐 4=晚餐 8=加餐
- *   meal: 1 | 2 | 4 | 8
- *   // 食谱 id
- *   recipeId: number
- *   // 份量(人份)，0=用食谱默认
- *   servings?: number
  * }
  * ```
  *
@@ -236,6 +230,16 @@ type updateConfig = {
   };
   body?: {
     /**
+     * 用餐时段：1=早餐 2=午餐 4=晚餐 8=加餐
+     */
+
+    meal: 1 | 2 | 4 | 8;
+    /**
+     * 食谱 id
+     */
+
+    recipeId: number;
+    /**
      * 编排备注
      */
 
@@ -250,21 +254,6 @@ type updateConfig = {
      */
 
     planDate: number;
-    /**
-     * 用餐时段：1=早餐 2=午餐 4=晚餐 8=加餐
-     */
-
-    meal: 1 | 2 | 4 | 8;
-    /**
-     * 食谱 id
-     */
-
-    recipeId: number;
-    /**
-     * 份量(人份)，0=用食谱默认
-     */
-
-    servings?: number;
   };
 };
 

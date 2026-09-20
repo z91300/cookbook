@@ -93,7 +93,7 @@ func (s *sSetting) Render(ctx context.Context, key string, recipeId int64) (stri
 
 // renderTemplate 按模板语法替换变量：
 // 基础：{recipe.title} {recipe.summary} {recipe.tips} {recipe.ingredients} {recipe.tools} {recipe.steps}
-// 数值：{recipe.calories} {recipe.difficulty} {recipe.servings} {recipe.cookMinutes} {recipe.mealMask}
+// 数值：{recipe.calories} {recipe.difficulty} {recipe.cookMinutes} {recipe.mealMask}
 // 计数/汇总：{recipe.stepCount} {recipe.ingredientCount} {recipe.infoLine}
 func renderTemplate(tpl string, d *model.RecipeDetail) string {
 	replacer := strings.NewReplacer(
@@ -107,7 +107,6 @@ func renderTemplate(tpl string, d *model.RecipeDetail) string {
 		"{recipe.ingredientCount}", gconv.String(len(d.Ingredients)),
 		"{recipe.calories}", numText(d.Calories, " kcal"),
 		"{recipe.difficulty}", difficultyText(d.Difficulty),
-		"{recipe.servings}", numText(d.Servings, ""),
 		"{recipe.cookMinutes}", numText(d.CookMinutes, " 分钟"),
 		"{recipe.mealMask}", mealMaskText(d.MealMask),
 		"{recipe.infoLine}", infoLine(d),

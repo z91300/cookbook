@@ -18,7 +18,6 @@ type Recipes struct {
 	MealMask          int    `json:"mealMask"          orm:"meal_mask"           description:""` //
 	Calories          int    `json:"calories"          orm:"calories"            description:""` //
 	Difficulty        int    `json:"difficulty"        orm:"difficulty"          description:""` //
-	Servings          int    `json:"servings"          orm:"servings"            description:""` //
 	CookMinutes       int    `json:"cookMinutes"       orm:"cook_minutes"        description:""` //
 	Source            string `json:"source"            orm:"source"              description:""` //
 	AiModel           string `json:"aiModel"           orm:"ai_model"            description:""` //

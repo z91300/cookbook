@@ -15,7 +15,6 @@ type Schedulings struct {
 	PlanDate  any //
 	Meal      any //
 	RecipeId  any //
-	Servings  any //
 	Note      any //
 	Sort      any //
 	IsDeleted any //

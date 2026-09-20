@@ -249,7 +249,7 @@ export interface Cookbook_api_recipe_v1_get_one_res {
 
   steps?: Cookbook_internal_model_recipe_step_item[];
   /**
-   * 每份热量 kcal，0=未填
+   * 本菜谱总热量 kcal，0=未填
    */
 
   calories?: number;
@@ -258,11 +258,6 @@ export interface Cookbook_api_recipe_v1_get_one_res {
    */
 
   difficulty?: number;
-  /**
-   * 份量(人份)，0=未填
-   */
-
-  servings?: number;
   /**
    * 耗时(分钟)，0=未填
    */
@@ -296,11 +291,6 @@ export interface Cookbook_api_scheduling_v1_create_req {
    */
 
   recipeId: number;
-  /**
-   * 份量(人份)，0=用食谱默认
-   */
-
-  servings?: number;
   /**
    * 编排备注
    */
@@ -387,7 +377,7 @@ export interface Cookbook_api_tag_v1_get_manage_list_res {
 }
 export interface Cookbook_api_tag_v1_reorder_req {
   /**
-   * 拖拽后的标签 id 顺序（完整顺序，从前往后）
+   * 拖拽后的标签 id 顺序（当前全部标签的完整顺序，从前往后）
    */
 
   ids: number[];
@@ -627,7 +617,7 @@ export interface Cookbook_internal_model_recipe_list_item {
 
   coverUrl?: string;
   /**
-   * 每份热量 kcal，0=未填
+   * 本菜谱总热量 kcal，0=未填
    */
 
   calories?: number;
@@ -636,11 +626,6 @@ export interface Cookbook_internal_model_recipe_list_item {
    */
 
   difficulty?: number;
-  /**
-   * 份量(人份)，0=未填
-   */
-
-  servings?: number;
   /**
    * 耗时(分钟)，0=未填
    */
@@ -705,11 +690,6 @@ export interface Cookbook_internal_model_scheduling_item {
    */
 
   coverUrl?: string;
-  /**
-   * 份量(人份)，0=用食谱默认
-   */
-
-  servings?: number;
   /**
    * 编排备注
    */

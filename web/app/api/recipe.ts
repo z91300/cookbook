@@ -67,12 +67,10 @@ import type * as ComponentTypes from './components';
  *     coverAttachmentId?: number
  *     // 封面图访问 URL，空=无封面
  *     coverUrl?: string
- *     // 每份热量 kcal，0=未填
+ *     // 本菜谱总热量 kcal，0=未填
  *     calories?: number
  *     // 难度：0=未填 1=简单 2=中等 3=较难
  *     difficulty?: number
- *     // 份量(人份)，0=未填
- *     servings?: number
  *     // 耗时(分钟)，0=未填
  *     cookMinutes?: number
  *     // 被收藏次数（收藏夹数）
@@ -316,12 +314,10 @@ export { deleteFn as delete };
  *     // [items] end
  *     media?: number[]
  *   }>
- *   // 每份热量 kcal，0=未填
+ *   // 本菜谱总热量 kcal，0=未填
  *   calories?: number
  *   // 难度：0=未填 1=简单 2=中等 3=较难
  *   difficulty?: number
- *   // 份量(人份)，0=未填
- *   servings?: number
  *   // 耗时(分钟)，0=未填
  *   cookMinutes?: number
  *   // 适合用餐时间位掩码：1=早餐 2=午餐 4=晚餐 8=加餐
@@ -378,21 +374,12 @@ export function getOne(config: getOneConfig): Promise<getOneResponse> {
  * **RequestBody**
  * ```ts
  * type RequestBody = {
- *   // 每份热量 kcal，0=未填
- *   calories?: number
  *   // 封面附件 id，0=清除封面
  *   coverAttachmentId?: number
- *   // 食材列表，整体覆盖
+ *   // 标签 id 列表（分类），整体覆盖；nil=不修改 []=清空
  *   // [items] start
  *   // [items] end
- *   ingredients?: Array<{
- *     // 食材名，如 五花肉
- *     name: string
- *     // 用量，如 500g
- *     amount?: string
- *     // 0=必选 1=可选
- *     optional?: number
- *   }>
+ *   tagIds?: number[]
  *   // 步骤列表，整体覆盖
  *   // [items] start
  *   // [items] end
@@ -406,6 +393,25 @@ export function getOne(config: getOneConfig): Promise<getOneResponse> {
  *     // [items] end
  *     media?: number[]
  *   }>
+ *   // 每份热量 kcal，0=未填
+ *   calories?: number
+ *   // 注意事项；不传=不修改，传空串=清空
+ *   tips?: string
+ *   // 食材列表，整体覆盖
+ *   // [items] start
+ *   // [items] end
+ *   ingredients?: Array<{
+ *     // 食材名，如 五花肉
+ *     name: string
+ *     // 用量，如 500g
+ *     amount?: string
+ *     // 0=必选 1=可选
+ *     optional?: number
+ *   }>
+ *   // 工具列表，整体覆盖
+ *   // [items] start
+ *   // [items] end
+ *   tools?: string[]
  *   // 用餐时间位掩码：1=早餐 2=午餐 4=晚餐 8=加餐；15=全部时段
  *   mealMask?: number
  *   // 难度：0=未填 1=简单 2=中等 3=较难
@@ -416,16 +422,6 @@ export function getOne(config: getOneConfig): Promise<getOneResponse> {
  *   title?: string
  *   // 一句话简介
  *   summary?: string
- *   // 注意事项
- *   tips?: string
- *   // 工具列表，整体覆盖
- *   // [items] start
- *   // [items] end
- *   tools?: string[]
- *   // 标签 id 列表（分类），整体覆盖；nil=不修改 []=清空
- *   // [items] start
- *   // [items] end
- *   tagIds?: number[]
  * }
  * ```
  *
@@ -448,25 +444,40 @@ type updateConfig = {
   };
   body?: {
     /**
+     * 封面附件 id，0=清除封面
+     */
+
+    coverAttachmentId?: number;
+    /**
+     * 标签 id 列表（分类），整体覆盖；nil=不修改 []=清空
+     */
+
+    tagIds?: number[];
+    /**
+     * 步骤列表，整体覆盖
+     */
+
+    steps?: ComponentTypes.Cookbook_internal_model_recipe_step_item[];
+    /**
      * 每份热量 kcal，0=未填
      */
 
     calories?: number;
     /**
-     * 封面附件 id，0=清除封面
+     * 注意事项；不传=不修改，传空串=清空
      */
 
-    coverAttachmentId?: number;
+    tips?: string;
     /**
      * 食材列表，整体覆盖
      */
 
     ingredients?: ComponentTypes.Cookbook_internal_model_recipe_ingredient_input[];
     /**
-     * 步骤列表，整体覆盖
+     * 工具列表，整体覆盖
      */
 
-    steps?: ComponentTypes.Cookbook_internal_model_recipe_step_item[];
+    tools?: string[];
     /**
      * 用餐时间位掩码：1=早餐 2=午餐 4=晚餐 8=加餐；15=全部时段
      */
@@ -492,21 +503,6 @@ type updateConfig = {
      */
 
     summary?: string;
-    /**
-     * 注意事项
-     */
-
-    tips?: string;
-    /**
-     * 工具列表，整体覆盖
-     */
-
-    tools?: string[];
-    /**
-     * 标签 id 列表（分类），整体覆盖；nil=不修改 []=清空
-     */
-
-    tagIds?: number[];
   };
 };
 

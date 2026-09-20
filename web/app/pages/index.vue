@@ -202,7 +202,7 @@ interface EditForm {
   mealMask: number
   difficulty: number // 难度 1=简单 2=中等 3=较难（表单默认中等，不再提供未填）
   cookMinutes: number // 耗时(分钟)，0=未填
-  calories: number // 每份热量 kcal，0=未填
+  calories: number // 本菜谱总热量 kcal，0=未填
   tagIds: number[] // 分类（可多选）
 }
 
@@ -713,7 +713,7 @@ useModalBackClose(() => ctxMenu.value.item !== null, closeCtxMenu)
             <div class="detail-modal__meta">
               <span v-if="detail.difficulty" class="tag-badge tag-badge--md">难度：{{ difficultyText[detail.difficulty] || '未填' }}</span>
               <span v-if="detail.cookMinutes" class="tag-badge tag-badge--md">耗时：{{ detail.cookMinutes }} 分钟</span>
-              <span v-if="detail.calories" class="tag-badge tag-badge--md">热量：{{ detail.calories }} kcal</span>
+              <span v-if="detail.calories" class="tag-badge tag-badge--md">总热量：{{ detail.calories }} kcal</span>
             </div>
             <div class="detail-modal__tags">
               <span v-if="detail.mealMask" class="tag-badge tag-badge--md tag-badge--amber">{{ mealText(detail.mealMask) }}</span>
@@ -992,7 +992,7 @@ useModalBackClose(() => ctxMenu.value.item !== null, closeCtxMenu)
                   <input v-model.number="editForm.cookMinutes" type="number" min="0" class="input w-full">
                 </div>
                 <div>
-                  <label class="form-label">热量(kcal)</label>
+                  <label class="form-label">总热量(kcal)</label>
                   <input v-model.number="editForm.calories" type="number" min="0" class="input w-full">
                 </div>
               </div>

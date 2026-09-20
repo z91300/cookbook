@@ -334,12 +334,12 @@ export function getList(config: getListConfig = {}): Promise<getListResponse> {
  * **RequestBody**
  * ```ts
  * type RequestBody = {
+ *   // 昵称
+ *   nickname?: string
  *   // 状态：0=禁用 1=正常（禁用会清空该用户登录态）
  *   status?: number
  *   // 是否管理员
  *   isAdmin?: boolean
- *   // 昵称
- *   nickname?: string
  * }
  * ```
  *
@@ -362,6 +362,11 @@ type updateConfig = {
   };
   body?: {
     /**
+     * 昵称
+     */
+
+    nickname?: string;
+    /**
      * 状态：0=禁用 1=正常（禁用会清空该用户登录态）
      */
 
@@ -371,11 +376,6 @@ type updateConfig = {
      */
 
     isAdmin?: boolean;
-    /**
-     * 昵称
-     */
-
-    nickname?: string;
   };
 };
 

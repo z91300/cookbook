@@ -724,12 +724,13 @@ useModalBackClose(() => ctxMenu.value.item !== null, closeCtxMenu)
                 </div>
               </div>
 
-              <!-- 食材（名称+用量两端对齐） -->
+              <!-- 食材（名称+用量，按分辨率 1/2/3 列自适应栅格） -->
               <div v-if="detail.ingredients?.length">
                 <h4 class="section-title">食材</h4>
                 <ul class="detail-modal__ingredients">
                   <li v-for="(ing, i) in detail.ingredients" :key="i" class="detail-modal__ingredient">
-                    <span class="min-w-0">{{ ing.name }}<span v-if="ing.optional" class="form-hint ml-1">（可选）</span></span>
+                    <span class="detail-modal__ingredient-name" :title="ing.name">{{ ing.name }}</span>
+                    <span v-if="ing.optional" class="detail-modal__ingredient-opt">可选</span>
                     <span class="detail-modal__amount">{{ ing.amount }}</span>
                   </li>
                 </ul>
@@ -1171,8 +1172,11 @@ useModalBackClose(() => ctxMenu.value.item !== null, closeCtxMenu)
 .detail-modal__meta { @apply mt-3 flex flex-wrap gap-2; }
 .detail-modal__tags { @apply mt-2.5 flex flex-wrap gap-2; }
 .detail-modal__sections { @apply mt-5 space-y-5; }
-.detail-modal__ingredients { @apply mt-2 text-sm text-zinc-700 dark:text-zinc-300; }
-.detail-modal__ingredient { @apply flex items-baseline justify-between gap-2 border-b border-dashed border-zinc-200 py-1.5 dark:border-zinc-700; }
+/* 食材：窄屏 1 列 / sm 起 2 列 / md 起 3 列；弹窗本身最宽 max-w-3xl(768px)，故最多 3 列 */
+.detail-modal__ingredients { @apply mt-2 grid grid-cols-1 gap-x-5 text-sm text-zinc-700 dark:text-zinc-300 sm:grid-cols-2 md:grid-cols-3; }
+.detail-modal__ingredient { @apply flex items-baseline gap-1.5 border-b border-dashed border-zinc-200 py-1.5 dark:border-zinc-700; }
+.detail-modal__ingredient-name { @apply min-w-0 flex-1 truncate; }
+.detail-modal__ingredient-opt { @apply shrink-0 text-xs text-zinc-400 dark:text-zinc-500; }
 .detail-modal__amount { @apply shrink-0 text-zinc-500 dark:text-zinc-400; }
 .detail-modal__tools { @apply mt-2 flex flex-wrap gap-2; }
 .detail-modal__steps { @apply mt-2 space-y-4; }

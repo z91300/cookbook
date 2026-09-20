@@ -1,12 +1,13 @@
 # GitHub Actions：构建单镜像（前端 SSR + GoFrame 后端）→ 推送 GHCR
 #
-# 无需配置任何仓库 Secret：推送 GHCR 使用内置 GITHUB_TOKEN（permissions.packages），
-# 数据库凭据运行时经 DB_* 环境变量注入，镜像与 CI 内均无凭据。
+# 无需配置任何仓库 Secret 即可构建推送 GHCR：推送 GHCR 使用内置 GITHUB_TOKEN
+# （permissions.packages），数据库凭据运行时经 DB_* 环境变量注入，镜像与 CI 内均无凭据。
+# 但「部署」一步需要 4 个 DEPLOY_* Secret，未配置时 deploy job 会失败（不会影响镜像推送）。
 #
 # 触发：
-#   push 到 main 分支        → 构建 + 推送（tag: latest + short-sha）
-#   手动 workflow_dispatch   → 可选指定版本号 tag
-#   push v* 标签             → tag: <版本> + latest
+#   push 到 main 分支        → 构建 + 推送（tag: latest + short-sha）→ SSH 部署
+#   手动 workflow_dispatch   → 可选指定版本号 tag → SSH 部署
+#   push v* 标签             → tag: <版本> + latest → SSH 部署
 
 name: build
 
@@ -74,3 +75,55 @@ jobs:
           context: .
           push: true
           tags: ${{ steps.meta.outputs.TAGS }}
+
+  # ---------------------------------------------------------------------------
+  # 部署：镜像推送成功后，SSH 到目标服务器拉取新镜像并重建容器
+  #
+  # 所需的仓库 Secrets（Settings → Secrets and variables → Actions）：
+  #   DEPLOY_HOST     目标服务器地址（域名或 IP）
+  #   DEPLOY_USER     SSH 用户（须在 docker 组内；或直接 root）
+  #   DEPLOY_SSH_KEY  专用部署私钥全文（ed25519，含 BEGIN/END 两行）
+  #   DEPLOY_PORT     SSH 端口（可选，默认 22）
+  #
+  # 前置条件（详见 docs/docker-auto-update.md「SSH 直连」一节）：
+  #   1. 服务器 /opt/zspace/docker-compose.yml 的 image 指向本仓库推送的镜像；
+  #   2. 镜像为私有包时，服务器需已 `docker login ghcr.io`（PAT 具备 read:packages）。
+  # 只想到发版才部署：把下面的 if 改成 startsWith(github.ref, 'refs/tags/v')
+  # ---------------------------------------------------------------------------
+  deploy:
+    needs: build
+    if: needs.build.result == 'success'
+    runs-on: ubuntu-latest
+    concurrency:
+      # 连续推送时不并发部署，避免两次 pull/recreate 互相踩
+      group: deploy-production
+      cancel-in-progress: false
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          script_stop: true
+          command_timeout: 10m
+          script: |
+            set -e
+            # 用 COMPOSE_FILE 指定编排文件即可，无需 cd：
+            #   项目目录自动取该文件所在目录（.env 也从那里读），
+            #   且该文件有顶层 `name: cookbook`，项目名与"进目录再执行"完全一致，
+            #   不会出现两套容器。
+            export COMPOSE_FILE=/opt/zspace/docker-compose.yml
+
+            # 只更新单个服务时在命令末尾加服务名，例如：
+            #   docker compose up -d --pull always --wait --wait-timeout 300 cookbook
+            echo "== 拉取新镜像并重建容器（等 healthcheck 通过，最长 300s）=="
+            if ! docker compose up -d --pull always --wait --wait-timeout 300; then
+              echo "== 部署失败，输出最近日志 =="
+              docker compose logs --tail 50 || true
+              exit 1
+            fi
+            echo "== 当前状态 =="
+            docker compose ps --format 'table {{.Service}}\t{{.Image}}\t{{.Status}}'
+            # 刻意不做 `docker image prune` —— 旧镜像要留着回滚

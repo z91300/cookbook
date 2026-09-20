@@ -12,7 +12,7 @@ type Attachments struct {
 	FileName    string `json:"fileName"    orm:"file_name"     description:""` //
 	StoragePath string `json:"storagePath" orm:"storage_path"  description:""` //
 	MimeType    string `json:"mimeType"    orm:"mime_type"     description:""` //
-	SizeBytes   int    `json:"sizeBytes"   orm:"size_bytes"    description:""` //
+	SizeBytes   int64  `json:"sizeBytes"   orm:"size_bytes"    description:""` //
 	Width       int    `json:"width"       orm:"width"         description:""` //
 	Height      int    `json:"height"      orm:"height"        description:""` //
 	Duration    int    `json:"duration"    orm:"duration"      description:""` //

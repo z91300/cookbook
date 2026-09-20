@@ -234,10 +234,10 @@ export function update(config: updateConfig): Promise<updateResponse> {
  * **RequestBody**
  * ```ts
  * type RequestBody = {
- *   // 食谱 id
- *   recipeId: number
  *   // 收藏备注，可空
  *   note?: string
+ *   // 食谱 id
+ *   recipeId: number
  * }
  * ```
  *
@@ -260,15 +260,15 @@ type addItemConfig = {
   };
   body?: {
     /**
-     * 食谱 id
-     */
-
-    recipeId: number;
-    /**
      * 收藏备注，可空
      */
 
     note?: string;
+    /**
+     * 食谱 id
+     */
+
+    recipeId: number;
   };
 };
 

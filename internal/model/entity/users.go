@@ -14,4 +14,6 @@ type Users struct {
 	Status             int    `json:"status"             orm:"status"               description:""` //
 	CreatedAt          int    `json:"createdAt"          orm:"created_at"           description:""` //
 	UpdatedAt          int    `json:"updatedAt"          orm:"updated_at"           description:""` //
+	IsAdmin            int    `json:"isAdmin"            orm:"is_admin"             description:""` //
+	LastLoginAt        int    `json:"lastLoginAt"        orm:"last_login_at"        description:""` //
 }

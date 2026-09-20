@@ -378,8 +378,8 @@ export function getOne(config: getOneConfig): Promise<getOneResponse> {
  * **RequestBody**
  * ```ts
  * type RequestBody = {
- *   // 菜谱标题
- *   title?: string
+ *   // 每份热量 kcal，0=未填
+ *   calories?: number
  *   // 封面附件 id，0=清除封面
  *   coverAttachmentId?: number
  *   // 食材列表，整体覆盖
@@ -393,10 +393,6 @@ export function getOne(config: getOneConfig): Promise<getOneResponse> {
  *     // 0=必选 1=可选
  *     optional?: number
  *   }>
- *   // 标签 id 列表（分类），整体覆盖；nil=不修改 []=清空
- *   // [items] start
- *   // [items] end
- *   tagIds?: number[]
  *   // 步骤列表，整体覆盖
  *   // [items] start
  *   // [items] end
@@ -412,8 +408,12 @@ export function getOne(config: getOneConfig): Promise<getOneResponse> {
  *   }>
  *   // 用餐时间位掩码：1=早餐 2=午餐 4=晚餐 8=加餐；15=全部时段
  *   mealMask?: number
- *   // 每份热量 kcal，0=未填
- *   calories?: number
+ *   // 难度：0=未填 1=简单 2=中等 3=较难
+ *   difficulty?: number
+ *   // 耗时(分钟)，0=未填
+ *   cookMinutes?: number
+ *   // 菜谱标题
+ *   title?: string
  *   // 一句话简介
  *   summary?: string
  *   // 注意事项
@@ -422,10 +422,10 @@ export function getOne(config: getOneConfig): Promise<getOneResponse> {
  *   // [items] start
  *   // [items] end
  *   tools?: string[]
- *   // 难度：0=未填 1=简单 2=中等 3=较难
- *   difficulty?: number
- *   // 耗时(分钟)，0=未填
- *   cookMinutes?: number
+ *   // 标签 id 列表（分类），整体覆盖；nil=不修改 []=清空
+ *   // [items] start
+ *   // [items] end
+ *   tagIds?: number[]
  * }
  * ```
  *
@@ -448,10 +448,10 @@ type updateConfig = {
   };
   body?: {
     /**
-     * 菜谱标题
+     * 每份热量 kcal，0=未填
      */
 
-    title?: string;
+    calories?: number;
     /**
      * 封面附件 id，0=清除封面
      */
@@ -463,11 +463,6 @@ type updateConfig = {
 
     ingredients?: ComponentTypes.Cookbook_internal_model_recipe_ingredient_input[];
     /**
-     * 标签 id 列表（分类），整体覆盖；nil=不修改 []=清空
-     */
-
-    tagIds?: number[];
-    /**
      * 步骤列表，整体覆盖
      */
 
@@ -478,10 +473,20 @@ type updateConfig = {
 
     mealMask?: number;
     /**
-     * 每份热量 kcal，0=未填
+     * 难度：0=未填 1=简单 2=中等 3=较难
      */
 
-    calories?: number;
+    difficulty?: number;
+    /**
+     * 耗时(分钟)，0=未填
+     */
+
+    cookMinutes?: number;
+    /**
+     * 菜谱标题
+     */
+
+    title?: string;
     /**
      * 一句话简介
      */
@@ -498,15 +503,10 @@ type updateConfig = {
 
     tools?: string[];
     /**
-     * 难度：0=未填 1=简单 2=中等 3=较难
+     * 标签 id 列表（分类），整体覆盖；nil=不修改 []=清空
      */
 
-    difficulty?: number;
-    /**
-     * 耗时(分钟)，0=未填
-     */
-
-    cookMinutes?: number;
+    tagIds?: number[];
   };
 };
 

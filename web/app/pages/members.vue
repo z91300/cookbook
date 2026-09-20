@@ -3,6 +3,9 @@
 import { apis } from '~/api'
 import type { Cookbook_internal_model_member_item } from '~/api/components'
 
+// 未登录只能看：新增/编辑/删除入口一律隐藏
+const { canEdit } = useAuth()
+
 // 预置角色（可自定义，后端 role 为自由文本）
 const presetRoles = ['爸爸', '妈妈', '儿子', '妻子', '妹妹']
 
@@ -120,7 +123,10 @@ async function removeMember(m: Cookbook_internal_model_member_item) {
   <main class="page page--narrow">
     <div class="page-header">
       <h1 class="page-title">家庭成员</h1>
-      <button type="button" class="btn btn--primary" @click="openCreate">+ 新增成员</button>
+      <button v-if="canEdit" type="button" class="btn btn--primary gap-1.5" @click="openCreate">
+        <PlusIcon class="size-4" />
+        新增成员
+      </button>
     </div>
 
     <!-- 表单 -->
@@ -185,8 +191,9 @@ async function removeMember(m: Cookbook_internal_model_member_item) {
         <div class="flex items-center gap-2">
           <span class="tag-badge tag-badge--green">{{ m.role || '成员' }}</span>
           <span class="member-card__name">{{ m.name }}</span>
-          <button type="button" class="text-btn text-btn--edit text-btn--xs" @click="openEdit(m)">编辑</button>
+          <button v-if="canEdit" type="button" class="text-btn text-btn--edit text-btn--xs" @click="openEdit(m)">编辑</button>
           <button
+            v-if="canEdit"
             type="button"
             class="text-btn text-btn--delete text-btn--xs"
             :disabled="deletingId === m.id"

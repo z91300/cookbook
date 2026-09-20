@@ -19,4 +19,6 @@ type Users struct {
 	Status             any //
 	CreatedAt          any //
 	UpdatedAt          any //
+	IsAdmin            any //
+	LastLoginAt        any //
 }

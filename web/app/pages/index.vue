@@ -9,6 +9,9 @@ const activeTagId = ref<number | null>(null) // 单选标签，null=全部
 const activeMeal = ref<number | null>(null) // 单选用餐时间，null=全部
 const sentinel = ref<Element | null>(null)
 
+// 编辑/新建/删除入口的可见性：未登录只能看（canEdit=false），删除仅管理员（后端口径一致）
+const { isAdmin, canEdit } = useAuth()
+
 // 用餐时间单选项（位掩码值与后端 model 常量对齐）
 const mealOptions = [
   { label: '早餐', value: 1 },
@@ -511,7 +514,11 @@ useModalBackClose(() => ctxMenu.value.item !== null, closeCtxMenu)
   <main class="page">
     <div class="page-header">
       <h1 class="page-title">菜谱</h1>
-      <button type="button" class="btn btn--primary" @click="openCreate">+ 新建菜谱</button>
+      <!-- 未登录只读：不展示新建入口 -->
+      <button v-if="canEdit" type="button" class="btn btn--primary gap-1.5" @click="openCreate">
+        <PlusIcon class="size-4" />
+        新建菜谱
+      </button>
     </div>
 
     <!-- 筛选区：搜索 + 种类/时段（带分组标签，白底面板归组） -->
@@ -761,14 +768,19 @@ useModalBackClose(() => ctxMenu.value.item !== null, closeCtxMenu)
             </div>
           </div>
 
-          <!-- 操作：收藏（收藏夹弹窗）+ 编辑 -->
+          <!-- 操作：收藏（收藏夹弹窗）+ 编辑；未登录只读，改为登录引导 -->
           <div class="detail-modal__footer">
-            <button type="button" class="btn btn--outline" @click="openFavModal(detail.id)">
-              收藏
-            </button>
-            <button type="button" class="btn btn--primary" @click="openEditFromDetail">
-              编辑
-            </button>
+            <template v-if="canEdit">
+              <button type="button" class="btn btn--outline" @click="openFavModal(detail.id)">
+                收藏
+              </button>
+              <button type="button" class="btn btn--primary" @click="openEditFromDetail">
+                编辑
+              </button>
+            </template>
+            <NuxtLink v-else to="/login" class="text-btn text-btn--accent text-sm">
+              登录后可编辑 / 收藏 →
+            </NuxtLink>
           </div>
         </template>
       </div>
@@ -789,7 +801,7 @@ useModalBackClose(() => ctxMenu.value.item !== null, closeCtxMenu)
     </div>
   </Teleport>
 
-  <!-- 右键菜单 -->
+  <!-- 右键菜单：复制提示词（只读，人人可用）+ 编辑（登录后）+ 删除（仅管理员） -->
   <Teleport to="body">
     <div v-if="ctxMenu.item" class="fixed inset-0 z-50" @click="closeCtxMenu" @contextmenu.prevent="closeCtxMenu">
       <div class="ctx-menu" :style="{ left: `${ctxMenu.x}px`, top: `${ctxMenu.y}px` }">
@@ -801,10 +813,15 @@ useModalBackClose(() => ctxMenu.value.item !== null, closeCtxMenu)
         >
           {{ copyPromptBusyId === ctxMenu.item!.id ? '渲染中…' : '复制生图提示词' }}
         </button>
-        <button type="button" class="ctx-menu__item" @click.stop="openEdit(ctxMenu.item!)">
+        <button v-if="canEdit" type="button" class="ctx-menu__item" @click.stop="openEdit(ctxMenu.item!)">
           编辑
         </button>
-        <button type="button" class="ctx-menu__item ctx-menu__item--danger" @click.stop="askDelete(ctxMenu.item!)">
+        <button
+          v-if="isAdmin"
+          type="button"
+          class="ctx-menu__item ctx-menu__item--danger"
+          @click.stop="askDelete(ctxMenu.item!)"
+        >
           删除
         </button>
       </div>
@@ -968,7 +985,14 @@ useModalBackClose(() => ctxMenu.value.item !== null, closeCtxMenu)
               <div>
                 <div class="mb-1 flex items-center justify-between">
                   <label class="text-sm font-medium">食材</label>
-                  <button type="button" class="text-btn text-btn--accent" @click="addIngredient">+ 添加食材</button>
+                  <button
+                    type="button"
+                    class="text-btn text-btn--accent inline-flex items-center gap-1"
+                    @click="addIngredient"
+                  >
+                    <PlusIcon class="size-3.5" />
+                    添加食材
+                  </button>
                 </div>
                 <div
                   v-for="(ing, idx) in editForm.ingredients"
@@ -992,7 +1016,14 @@ useModalBackClose(() => ctxMenu.value.item !== null, closeCtxMenu)
               <div>
                 <div class="mb-1 flex items-center justify-between">
                   <label class="text-sm font-medium">步骤</label>
-                  <button type="button" class="text-btn text-btn--accent" @click="addStep">+ 添加步骤</button>
+                  <button
+                    type="button"
+                    class="text-btn text-btn--accent inline-flex items-center gap-1"
+                    @click="addStep"
+                  >
+                    <PlusIcon class="size-3.5" />
+                    添加步骤
+                  </button>
                 </div>
 
                 <div
@@ -1050,7 +1081,7 @@ useModalBackClose(() => ctxMenu.value.item !== null, closeCtxMenu)
                       :class="stepUploading.includes(idx) ? 'pointer-events-none opacity-60' : ''"
                     >
                       <span v-if="stepUploading.includes(idx)" class="text-xs">上传中…</span>
-                      <span v-else>+</span>
+                      <PlusIcon v-else class="size-5" />
                       <input
                         type="file"
                         accept="image/*"
@@ -1062,7 +1093,10 @@ useModalBackClose(() => ctxMenu.value.item !== null, closeCtxMenu)
                   </div>
                 </div>
 
-                <button type="button" class="edit-modal__add-step" @click="addStep">+ 添加步骤</button>
+                <button type="button" class="edit-modal__add-step" @click="addStep">
+                  <PlusIcon class="size-3.5" />
+                  添加步骤
+                </button>
               </div>
             </div>
           </div>
@@ -1186,7 +1220,7 @@ useModalBackClose(() => ctxMenu.value.item !== null, closeCtxMenu)
 .edit-modal__thumb-img { @apply size-full object-cover; }
 .edit-modal__thumb-remove { @apply absolute right-0.5 top-0.5 size-5 rounded-full bg-black/60 text-xs text-white hover:bg-black/80; }
 .edit-modal__media-add { @apply flex size-16 cursor-pointer items-center justify-center rounded border border-dashed border-zinc-300 text-xl text-zinc-400 hover:border-green-500 hover:text-green-600 dark:border-zinc-700 dark:text-zinc-500 dark:hover:border-green-500 dark:hover:text-green-400; }
-.edit-modal__add-step { @apply w-full rounded-md border border-dashed border-zinc-300 py-2 text-sm text-zinc-500 hover:border-green-500 hover:text-green-600 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-green-500 dark:hover:text-green-400; }
+.edit-modal__add-step { @apply flex w-full items-center justify-center gap-1 rounded-md border border-dashed border-zinc-300 py-2 text-sm text-zinc-500 hover:border-green-500 hover:text-green-600 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-green-500 dark:hover:text-green-400; }
 .edit-modal__footer { @apply mt-6 flex shrink-0 justify-end gap-3; }
 
 /* ---- 操作提示 ---- */

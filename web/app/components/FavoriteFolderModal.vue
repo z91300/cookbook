@@ -176,7 +176,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
               >{{ creatingFolder ? '…' : '创建' }}</button>
             </div>
           </template>
-          <button v-else type="button" class="fav-modal__create" @click="toggleCreating">+ 新建收藏夹</button>
+          <button v-else type="button" class="fav-modal__create" @click="toggleCreating">
+            <PlusIcon class="size-3.5" />
+            新建收藏夹
+          </button>
         </div>
       </div>
     </div>
@@ -192,5 +195,5 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 .fav-modal__folder-name { @apply min-w-0 flex-1 truncate text-sm text-zinc-700 dark:text-zinc-300; }
 .fav-modal__folder-count { @apply text-xs text-zinc-400 dark:text-zinc-500; }
 .fav-modal__footer { @apply border-t border-zinc-200 p-3 dark:border-zinc-800; }
-.fav-modal__create { @apply w-full rounded border border-dashed border-zinc-300 py-2 text-sm text-zinc-500 transition-colors hover:border-green-500 hover:text-green-600 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-green-500 dark:hover:text-green-400; }
+.fav-modal__create { @apply flex w-full items-center justify-center gap-1 rounded border border-dashed border-zinc-300 py-2 text-sm text-zinc-500 transition-colors hover:border-green-500 hover:text-green-600 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-green-500 dark:hover:text-green-400; }
 </style>

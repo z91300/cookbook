@@ -8,6 +8,7 @@ import (
 	"context"
 
 	"cookbook/internal/dao"
+	"cookbook/internal/logic/auth"
 	"cookbook/internal/model"
 	"cookbook/internal/model/do"
 	"cookbook/internal/service"
@@ -82,6 +83,9 @@ func (s *sScheduling) List(ctx context.Context, in model.SchedulingListInput) (o
 
 // Save 新增（id==0）或编辑（id>0）编排条目；recipeId 必须指向未删除食谱
 func (s *sScheduling) Save(ctx context.Context, id int64, in model.SchedulingSaveInput) (int64, error) {
+	if err := auth.MustLogin(ctx); err != nil {
+		return 0, err
+	}
 	exists, err := s.recipeExists(ctx, in.RecipeId)
 	if err != nil {
 		return 0, err
@@ -138,6 +142,9 @@ func (s *sScheduling) Save(ctx context.Context, id int64, in model.SchedulingSav
 
 // Delete 逻辑删除编排条目
 func (s *sScheduling) Delete(ctx context.Context, id int64) (err error) {
+	if err = auth.MustLogin(ctx); err != nil {
+		return err
+	}
 	count, err := dao.Schedulings.Ctx(ctx).
 		Where(dao.Schedulings.Columns().Id, id).
 		Where(dao.Schedulings.Columns().IsDeleted, 0).

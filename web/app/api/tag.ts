@@ -131,6 +131,42 @@ export function getManageList(config: getManageListConfig = {}): Promise<getMana
 /**
  * ---
  *
+ * [PUT] 标签排序
+ *
+ * **path:** /tags/sort
+ *
+ * ---
+ *
+ * **RequestBody**
+ * ```ts
+ * type RequestBody = {
+ *   // 拖拽后的标签 id 顺序（完整顺序，从前往后）
+ *   // [items] start
+ *   // [items] end
+ *   ids: number[]
+ * }
+ * ```
+ *
+ * ---
+ *
+ * **Response**
+ * ```ts
+ * type Response = object
+ * ```
+ *
+ */
+type reorderResponse = ComponentTypes.Cookbook_api_tag_v1_reorder_res;
+type reorderConfig = {
+  body?: ComponentTypes.Cookbook_api_tag_v1_reorder_req;
+};
+
+export function reorder(config: reorderConfig = {}): Promise<reorderResponse> {
+  return request('PUT', '/tags/sort', config);
+}
+
+/**
+ * ---
+ *
  * [DELETE] 删除标签
  *
  * **path:** /tags/{id}

@@ -60,6 +60,7 @@ internal/consts      全局常量
   - `create` —— 创建（`POST`）
   - `update` —— 全量修改（`PUT`）
   - `delete` —— 删除（`DELETE`）
+  - `reorder` —— 整体排序（`PUT /foos/sort`，提交完整 id 顺序；静态路径优先于 `{id}` 模糊规则，已在 `/tags/sort` 上实测可用）
 - 全库 operationId 不得重复；它是 OpenAPI 的唯一操作标识（前端 worma 代码生成、mock 等依赖它）
 - 示例：
 
@@ -77,6 +78,40 @@ type GetReq struct {
 - **字段描述**：字段的对外描述用 `dc:"…"` 标签写在 model 字段上（与 Go `//` 注释文案保持一致）；GoFrame OpenAPI 只读 `dc`/`des`/`description` 标签，不读 Go 注释，注释不写 `dc` 则 swagger 无字段说明。
 - **分页**：入参嵌入 `model.PaginationInput`；响应用别名 `type FooListOutput = model.PageRes[FooItem]`。
 - **统一响应**：HTTP 出口信封 `model.StandardRes`（`{code, message, data}`），由 `internal/handler.MiddlewareResponse` 输出；错误码通过 `gerror`/`gcode` 携带。
+
+## 用户与权限（auth）
+
+角色极简：只有 `users.is_admin` 一个角色位，不做角色表/权限表。
+
+| 能力 | 管理员 | 普通用户 | 未登录 |
+| --- | --- | --- | --- |
+| 浏览/搜索/查看菜谱、收藏夹、成员、编排、通用设置（读） | ✅ | ✅ | ✅（只能看） |
+| 新建/编辑菜谱、收藏夹与收藏项、成员、编排、上传附件、保存通用设置（写） | ✅ | ✅ | ❌（61 请先登录） |
+| 标签管理（`tag_create` / `tag_update` / `tag_delete`） | ✅ | ❌（61 无权限） | ❌ |
+| 删除菜谱（`recipe_delete`） | ✅ | ❌（61 无权限） | ❌ |
+| 用户管理（`user_getList` / `user_update` / `user_resetPassword`） | ✅ | ❌（61 无权限） | ❌ |
+
+- **首个注册用户即管理员**：`internal/logic/auth.Register` 的判据是「尚不存在可登录的管理员」
+  （`is_admin=1 AND status=1 AND password_hash<>''`），兼容库中残留的无密码占位行。
+- **双令牌登录态**（表 `user_sessions`，明文都不落库、只存 sha256）：
+  - `access`：**2 小时**，前端存 `localStorage['cookbook_token']`，请求头 `Authorization: Bearer <token>`
+  - `refresh`：**30 天**（每次刷新重置，滑动续期），存 `localStorage['cookbook_refresh_token']`，
+    仅用于 `POST /auth/refresh`，**每次刷新都轮换 refresh**（旧的立即作废）
+  - 登出删除会话；禁用账号 / 重置密码 / 取消管理员会清空该用户全部会话
+- **错误码区分「未登录」与「登录态过期」**——这是前端能否自动续期的关键：
+  - `61`（`gcode.CodeNotAuthorized`）：未带令牌，或已登录但无权限 → 前端按未登录处理
+  - `4401`（`internal/consts.CodeTokenExpired`）：带了 access 但已过期/会话被删 →
+    前端用 refresh 换新令牌对后**自动重试原请求**；刷新也失败才清空本地令牌
+- **鉴权中间件**：`internal/handler.MiddlewareAuth` 只识别身份、不拦截（无令牌→匿名；令牌失效→
+  在上下文标记 `TokenInvalid`），注册顺序必须在 `MiddlewareResponse` 之前（见 `internal/cmd/cmd.go`）。
+  权限判断全在 **logic 层**：`auth.MustLogin(ctx)`（写操作）/ `auth.MustAdmin(ctx)`（管理操作）。
+- **前端**：`app/composables/useAuth.ts`（`useState('auth-user')` 全局共享 + 进站 `fetchProfile`；
+  暴露 `isLoggedIn` / `isAdmin` / `canEdit`）；`canEdit=false`（未登录）时页面上的新建、编辑、收藏、
+  编排、保存等入口一律隐藏（首页/收藏/成员/编排/设置 + `QuickNav` 悬浮球整体隐藏），后端仍独立校验。
+  令牌读写与「单飞刷新 + 重试」都在 `app/api/request.ts`: **务必从 `~/api/request` 导入**这些工具——
+  `app/api/index.ts` 是 worma 生成文件，只重复导出 `ApiError/request/ApiRequestConfig`，
+  往聚合入口加东西会在下次 `api:gen` 时丢失（`MISSING_EXPORT` 会让整站失去交互）。
+- **用户保护性约束**（`auth.Update`）：不能禁用/降权自己；系统至少保留一名「正常状态」的管理员。
 
 ## 数据库
 

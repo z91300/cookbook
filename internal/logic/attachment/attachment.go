@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"cookbook/internal/dao"
+	"cookbook/internal/logic/auth"
 	"cookbook/internal/model"
 	"cookbook/internal/model/do"
 	"cookbook/internal/service"
@@ -43,6 +44,9 @@ func randomName(original string) string {
 
 // Upload 读取上传文件，以 BLOB 写入 attachments.content 并登记记录
 func (s *sAttachment) Upload(ctx context.Context) (res *model.AttachmentUploadOutput, err error) {
+	if err = auth.MustLogin(ctx); err != nil {
+		return nil, err
+	}
 	r := g.RequestFromCtx(ctx)
 	file := r.GetUploadFile("file")
 	if file == nil {

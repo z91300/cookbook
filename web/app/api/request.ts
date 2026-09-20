@@ -55,6 +55,90 @@ function isStandardRes(value: unknown): value is StandardRes {
   return typeof value === 'object' && value !== null && 'code' in value && 'message' in value && 'data' in value;
 }
 
+/** 业务错误码：访问令牌过期（与后端 internal/consts.CodeTokenExpired 一致） */
+export const CODE_TOKEN_EXPIRED = 4401;
+
+/** 双令牌的本地存储键（与 composables/useAuth.ts 保持一致） */
+const ACCESS_TOKEN_KEY = 'cookbook_token';
+const REFRESH_TOKEN_KEY = 'cookbook_refresh_token';
+
+/** 读取本地访问令牌（access；SSR 阶段无 localStorage，返回空串） */
+export function getAuthToken(): string {
+  if (typeof localStorage === 'undefined') return '';
+  return localStorage.getItem(ACCESS_TOKEN_KEY) ?? '';
+}
+
+/** 读取本地刷新令牌（refresh） */
+export function getRefreshToken(): string {
+  if (typeof localStorage === 'undefined') return '';
+  return localStorage.getItem(REFRESH_TOKEN_KEY) ?? '';
+}
+
+/** 写入双令牌（登录、注册、刷新成功后调用） */
+export function setAuthTokens(token: string, refreshToken: string): void {
+  if (typeof localStorage === 'undefined') return;
+  localStorage.setItem(ACCESS_TOKEN_KEY, token);
+  localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+}
+
+/** 清空双令牌（登出、刷新失败时调用） */
+export function clearAuthTokens(): void {
+  if (typeof localStorage === 'undefined') return;
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
+}
+
+/**
+ * 登录态彻底失效（refresh 也换不出新令牌）时的回调。
+ * 由 composables/useAuth.ts 注册，用于把页面上的用户态一并清掉。
+ */
+let authExpiredHandler: (() => void) | null = null;
+
+export function setAuthExpiredHandler(handler: (() => void) | null): void {
+  authExpiredHandler = handler;
+}
+
+/** 刷新令牌接口返回（双令牌对） */
+interface RefreshTokenRes {
+  token?: string;
+  refreshToken?: string;
+  accessExpiresAt?: number;
+}
+
+/** 正在进行的刷新（单飞：并发过期只发一次刷新请求，避免 refresh 被轮换两次而互相作废） */
+let refreshing: Promise<string> | null = null;
+
+/**
+ * 用 refreshToken 换新的令牌对，返回新的 access。刷新失败即清除本地令牌并通知 useAuth。
+ * 注意：这里直接走 $fetch（不走 request），否则 4401 会递归。
+ */
+function refreshAccessToken(): Promise<string> {
+  if (refreshing) return refreshing;
+  refreshing = (async () => {
+    const refreshToken = getRefreshToken();
+    if (!refreshToken) throw new ApiError(CODE_TOKEN_EXPIRED, '登录态已过期，请重新登录');
+    const res = await $fetch<StandardRes<RefreshTokenRes>>('/auth/refresh', {
+      method: 'POST',
+      baseURL: resolveApiBase(),
+      body: { refreshToken },
+    });
+    if (!isStandardRes(res) || res.code !== 0 || !res.data?.token) {
+      throw new ApiError(res?.code ?? CODE_TOKEN_EXPIRED, res?.message || '登录态已失效，请重新登录');
+    }
+    setAuthTokens(res.data.token, res.data.refreshToken ?? refreshToken);
+    return res.data.token;
+  })()
+    .catch((err: unknown) => {
+      clearAuthTokens();
+      authExpiredHandler?.();
+      throw err instanceof Error ? err : new ApiError(CODE_TOKEN_EXPIRED, '登录态已失效，请重新登录');
+    })
+    .finally(() => {
+      refreshing = null;
+    });
+  return refreshing;
+}
+
 /** 读取运行时 API 基地址；可用 NUXT_PUBLIC_API_BASE 环境变量覆盖 */
 function resolveApiBase(): string {
   try {
@@ -66,10 +150,14 @@ function resolveApiBase(): string {
 
 /**
  * 统一请求入口：替换路径参数后通过 $fetch 发起请求，
+ * 自动带上访问令牌（Authorization: Bearer <token>），
  * 并在 onResponse 中拆开 StandardRes 信封——生成的 Response 类型
  * 与 spec 一致（即信封的 data 部分）；code != 0 时抛出 {@link ApiError}。
+ *
+ * 双令牌：收到 4401（access 过期）时自动用 refreshToken 换新令牌并重试一次原请求；
+ * 刷新失败会清空本地令牌并抛出错误，调用方按「未登录」处理即可。
  */
-export function request<T>(
+export async function request<T>(
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD',
   path: string,
   config: ApiRequestConfig = {}
@@ -80,19 +168,34 @@ export function request<T>(
         pathParams[key] === undefined ? `{${key}}` : encodeURIComponent(String(pathParams[key]))
       )
     : path;
-  const promise = $fetch(url, {
-    method,
-    baseURL: resolveApiBase(),
-    ...options,
-    onResponse({ response }) {
-      const body: unknown = response._data;
-      if (!isStandardRes(body)) return;
-      if (body.code !== 0) {
-        throw new ApiError(body.code, body.message);
-      }
-      response._data = body.data;
+
+  const send = (token: string) =>
+    $fetch<T>(url, {
+      method,
+      baseURL: resolveApiBase(),
+      ...options,
+      headers: {
+        ...(options.headers as Record<string, string> | undefined),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      onResponse({ response }) {
+        const body: unknown = response._data;
+        if (!isStandardRes(body)) return;
+        if (body.code !== 0) {
+          throw new ApiError(body.code, body.message);
+        }
+        response._data = body.data;
+      },
+    });
+
+  try {
+    return await send(getAuthToken());
+  }
+  catch (err) {
+    if (err instanceof ApiError && err.code === CODE_TOKEN_EXPIRED && getRefreshToken()) {
+      const token = await refreshAccessToken();
+      return await send(token);
     }
-  });
-  // onResponse 已拆包为信封 data，与 spec 声明的响应类型一致
-  return promise as Promise<T>;
+    throw err;
+  }
 }

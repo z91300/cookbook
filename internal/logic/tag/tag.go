@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"cookbook/internal/dao"
+	"cookbook/internal/logic/auth"
 	"cookbook/internal/model"
 	"cookbook/internal/model/do"
 	"cookbook/internal/service"
@@ -72,8 +73,11 @@ func (s *sTag) ManageList(ctx context.Context) (out []*model.TagManageItem, err 
 	return out, nil
 }
 
-// Create 新增标签：查重后追加到末尾（sort = 当前最大 + 1）
+// Create 新增标签：查重后追加到末尾（sort = 当前最大 + 1）；仅管理员可操作
 func (s *sTag) Create(ctx context.Context, in model.TagSaveInput) (int64, error) {
+	if err := auth.MustAdmin(ctx); err != nil {
+		return 0, err
+	}
 	name := strings.TrimSpace(in.Name)
 	if name == "" {
 		return 0, gerror.New("标签名不能为空")
@@ -99,8 +103,11 @@ func (s *sTag) Create(ctx context.Context, in model.TagSaveInput) (int64, error)
 	return id, nil
 }
 
-// Update 重命名标签：目标须存在，新名不得与其他标签重复
+// Update 重命名标签：目标须存在，新名不得与其他标签重复；仅管理员可操作
 func (s *sTag) Update(ctx context.Context, id int64, in model.TagSaveInput) (err error) {
+	if err = auth.MustAdmin(ctx); err != nil {
+		return err
+	}
 	name := strings.TrimSpace(in.Name)
 	if name == "" {
 		return gerror.New("标签名不能为空")
@@ -130,9 +137,60 @@ func (s *sTag) Update(ctx context.Context, id int64, in model.TagSaveInput) (err
 	return err
 }
 
+// Reorder 拖拽排序：按传入顺序把 sort 重写为 1、2、3…（越小越靠前）；仅管理员可操作
+// 传入的 id 必须是当前全部标签的完整顺序（不重不漏）：否则会出现两个标签同 sort、
+// 排序结果不确定，因此宁可整体拒绝也不写半截顺序
+func (s *sTag) Reorder(ctx context.Context, ids []int64) error {
+	if err := auth.MustAdmin(ctx); err != nil {
+		return err
+	}
+	if len(ids) == 0 {
+		return gerror.New("标签顺序不能为空")
+	}
+	seen := make(map[int64]struct{}, len(ids))
+	for _, id := range ids {
+		if id <= 0 {
+			return gerror.Newf("标签 id 不合法: %d", id)
+		}
+		if _, ok := seen[id]; ok {
+			return gerror.Newf("标签 id 重复: %d", id)
+		}
+		seen[id] = struct{}{}
+	}
+	total, err := dao.Tags.Ctx(ctx).Count()
+	if err != nil {
+		return err
+	}
+	if total != len(ids) {
+		return gerror.Newf("标签已变化（当前 %d 个，提交 %d 个），请刷新后重试", total, len(ids))
+	}
+	count, err := dao.Tags.Ctx(ctx).WhereIn(dao.Tags.Columns().Id, ids).Count()
+	if err != nil {
+		return err
+	}
+	if count != len(ids) {
+		return gerror.New("存在不存在的标签 id，排序未生效")
+	}
+	return dao.Tags.Ctx(ctx).Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
+		for i, id := range ids {
+			if _, err := dao.Tags.Ctx(ctx).
+				Cache(tagCacheClearOption).
+				Where(dao.Tags.Columns().Id, id).
+				Data(do.Tags{Sort: i + 1}).
+				Update(); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
 // Delete 删除标签：事务内先清 recipe_tags 关联（即从菜谱移除该标签，菜谱保留）再删标签；
-// 返回受影响菜谱数（使用中、未删除的）供前端提示
+// 返回受影响菜谱数（使用中、未删除的）供前端提示；仅管理员可操作
 func (s *sTag) Delete(ctx context.Context, id int64) (affected int, err error) {
+	if err = auth.MustAdmin(ctx); err != nil {
+		return 0, err
+	}
 	exists, err := dao.Tags.Ctx(ctx).Where(dao.Tags.Columns().Id, id).Count()
 	if err != nil {
 		return 0, err

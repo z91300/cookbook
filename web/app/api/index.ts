@@ -20,6 +20,7 @@
  */
 export { ApiError, request, type ApiRequestConfig } from './request';
 import * as attachment from './attachment';
+import * as user from './user';
 import * as favorite from './favorite';
 import * as hello from './hello';
 import * as member from './member';
@@ -31,6 +32,7 @@ import * as tag from './tag';
 /** 按资源（operationId 前缀）分组的 API 命名空间，例如 `apis.skill.getList()` */
 export const apis = {
   attachment,
+  user,
   favorite,
   hello,
   member,

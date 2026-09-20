@@ -15,6 +15,7 @@ import (
 	"github.com/gogf/gf/v2/util/gconv"
 
 	"cookbook/internal/dao"
+	"cookbook/internal/logic/auth"
 	"cookbook/internal/model"
 	"cookbook/internal/service"
 )
@@ -47,6 +48,9 @@ func (s *sSetting) List(ctx context.Context) (out []*model.SettingItem, err erro
 
 // Upsert 批量保存：存在则更新 value 与 updated_at，不存在则插入
 func (s *sSetting) Upsert(ctx context.Context, items model.SettingUpsertInputList) (err error) {
+	if err = auth.MustLogin(ctx); err != nil {
+		return err
+	}
 	if len(items) == 0 {
 		return nil
 	}

@@ -8,6 +8,7 @@ import (
 	"context"
 
 	"cookbook/internal/dao"
+	"cookbook/internal/logic/auth"
 	"cookbook/internal/model"
 	"cookbook/internal/service"
 
@@ -89,6 +90,9 @@ func (s *sFavorite) List(ctx context.Context) (out []*model.FavoriteFolder, err 
 
 // Create 新建收藏夹
 func (s *sFavorite) Create(ctx context.Context, in model.FavoriteSaveInput) (int64, error) {
+	if err := auth.MustLogin(ctx); err != nil {
+		return 0, err
+	}
 	now := gtime.Timestamp()
 	id, err := dao.Favorites.Ctx(ctx).
 		Data(g.Map{
@@ -109,6 +113,9 @@ func (s *sFavorite) Create(ctx context.Context, in model.FavoriteSaveInput) (int
 
 // Update 编辑收藏夹
 func (s *sFavorite) Update(ctx context.Context, id int64, in model.FavoriteSaveInput) (err error) {
+	if err = auth.MustLogin(ctx); err != nil {
+		return err
+	}
 	count, err := dao.Favorites.Ctx(ctx).
 		Where(dao.Favorites.Columns().Id, id).
 		Where(dao.Favorites.Columns().IsDeleted, 0).
@@ -133,6 +140,9 @@ func (s *sFavorite) Update(ctx context.Context, id int64, in model.FavoriteSaveI
 
 // Delete 删除收藏夹（逻辑删）并硬删夹内条目；食谱本体不动
 func (s *sFavorite) Delete(ctx context.Context, id int64) (err error) {
+	if err = auth.MustLogin(ctx); err != nil {
+		return err
+	}
 	err = dao.Favorites.Transaction(ctx, func(ctx context.Context, tx gdb.TX) (err error) {
 		if _, err = dao.Favorites.Ctx(ctx).
 			Where(dao.Favorites.Columns().Id, id).
@@ -211,6 +221,9 @@ func (s *sFavorite) GetByRecipe(ctx context.Context, recipeId int64) (out []int6
 
 // AddItem 收藏食谱到夹：已存在行则更新 note，否则插入
 func (s *sFavorite) AddItem(ctx context.Context, favoriteId int64, in model.FavoriteAddItemInput) (err error) {
+	if err = auth.MustLogin(ctx); err != nil {
+		return err
+	}
 	// 收藏夹存在性
 	fCount, err := dao.Favorites.Ctx(ctx).
 		Where(dao.Favorites.Columns().Id, favoriteId).
@@ -262,6 +275,9 @@ func (s *sFavorite) AddItem(ctx context.Context, favoriteId int64, in model.Favo
 
 // RemoveItem 从收藏夹取消收藏（硬删条目行）
 func (s *sFavorite) RemoveItem(ctx context.Context, favoriteId int64, recipeId int64) (err error) {
+	if err = auth.MustLogin(ctx); err != nil {
+		return err
+	}
 	_, err = dao.FavoriteItems.Ctx(ctx).
 		Where(dao.FavoriteItems.Columns().FavoriteId, favoriteId).
 		Where(dao.FavoriteItems.Columns().RecipeId, recipeId).

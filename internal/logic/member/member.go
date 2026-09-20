@@ -8,6 +8,7 @@ import (
 	"context"
 
 	"cookbook/internal/dao"
+	"cookbook/internal/logic/auth"
 	"cookbook/internal/model"
 	"cookbook/internal/service"
 
@@ -43,6 +44,9 @@ func (s *sMember) List(ctx context.Context) (out []*model.MemberItem, err error)
 
 // Save 新增（id==0）或编辑（id>0）成员
 func (s *sMember) Save(ctx context.Context, id int64, in model.MemberSaveInput) (int64, error) {
+	if err := auth.MustLogin(ctx); err != nil {
+		return 0, err
+	}
 	now := gtime.Timestamp()
 	if id > 0 {
 		count, err := dao.Members.Ctx(ctx).
@@ -88,6 +92,9 @@ func (s *sMember) Save(ctx context.Context, id int64, in model.MemberSaveInput) 
 
 // Delete 逻辑删除成员
 func (s *sMember) Delete(ctx context.Context, id int64) (err error) {
+	if err = auth.MustLogin(ctx); err != nil {
+		return err
+	}
 	_, err = dao.Members.Ctx(ctx).
 		Where(dao.Members.Columns().Id, id).
 		Data(g.Map{

@@ -18,6 +18,7 @@ import (
 	"cookbook/internal/controller/scheduling"
 	"cookbook/internal/controller/setting"
 	"cookbook/internal/controller/tag"
+	"cookbook/internal/controller/user"
 	"cookbook/internal/handler"
 )
 
@@ -31,8 +32,13 @@ var (
 			applyDBEnv()
 			s := g.Server()
 			s.Group("/", func(group *ghttp.RouterGroup) {
-				// 多值查询参数归一（?k=a&k=b → ?k[]=a&k[]=b）须在参数绑定前执行
-				group.Middleware(handler.MiddlewareQueryMultiValue, handler.MiddlewareResponse)
+				// 顺序：① 多值查询参数归一（须在参数绑定前）② 鉴权（解析令牌写入当前用户）
+				// ③ 统一响应信封（须在业务后、鉴权后，保证错误也走信封）
+				group.Middleware(
+					handler.MiddlewareQueryMultiValue,
+					handler.MiddlewareAuth,
+					handler.MiddlewareResponse,
+				)
 				group.Bind(
 					hello.NewV1(),
 					recipe.NewV1(),
@@ -42,6 +48,7 @@ var (
 					favorite.NewV1(),
 					member.NewV1(),
 					scheduling.NewV1(),
+					user.NewV1(),
 				)
 			})
 			s.Run()

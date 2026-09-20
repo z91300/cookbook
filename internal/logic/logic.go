@@ -6,6 +6,7 @@ package logic
 
 import (
 	_ "cookbook/internal/logic/attachment"
+	_ "cookbook/internal/logic/auth"
 	_ "cookbook/internal/logic/favorite"
 	_ "cookbook/internal/logic/member"
 	_ "cookbook/internal/logic/recipe"

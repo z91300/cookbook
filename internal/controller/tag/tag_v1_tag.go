@@ -54,6 +54,13 @@ func (c *ControllerV1) Update(ctx context.Context, req *v1.UpdateReq) (res *v1.U
 	return &v1.UpdateRes{}, nil
 }
 
+func (c *ControllerV1) Reorder(ctx context.Context, req *v1.ReorderReq) (res *v1.ReorderRes, err error) {
+	if err = service.Tag().Reorder(ctx, req.Ids); err != nil {
+		return nil, err
+	}
+	return &v1.ReorderRes{}, nil
+}
+
 func (c *ControllerV1) Delete(ctx context.Context, req *v1.DeleteReq) (res *v1.DeleteRes, err error) {
 	affected, err := service.Tag().Delete(ctx, req.Id)
 	if err != nil {

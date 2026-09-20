@@ -130,9 +130,12 @@ async function removeMember(m: Cookbook_internal_model_member_item) {
       <button
         v-if="!formOpen"
         type="button"
-        class="text-btn text-btn--accent"
+        class="text-btn text-btn--accent inline-flex items-center gap-1"
         @click="openCreate"
-      >+ 新增成员</button>
+      >
+        <PlusIcon class="size-3.5" />
+        新增成员
+      </button>
       <span v-else class="member-panel__form-title">{{ form?.id ? '编辑成员' : '新增成员' }}</span>
       <button v-if="formOpen" type="button" class="text-btn text-btn--muted text-btn--xs" @click="closeForm">返回列表</button>
     </div>
@@ -210,7 +213,10 @@ async function removeMember(m: Cookbook_internal_model_member_item) {
 
       <!-- 列表态底部添加入口 -->
       <div v-if="!formOpen" class="p-3">
-        <button type="button" class="member-panel__add-bottom" @click="openCreate">+ 新增成员</button>
+        <button type="button" class="member-panel__add-bottom" @click="openCreate">
+          <PlusIcon class="size-3.5" />
+          新增成员
+        </button>
       </div>
     </div>
   </div>
@@ -225,5 +231,5 @@ async function removeMember(m: Cookbook_internal_model_member_item) {
 .member-panel__item { @apply border-b border-zinc-100 px-1 py-2.5 last:border-0 dark:border-zinc-800; }
 .member-panel__name { @apply min-w-0 flex-1 truncate text-sm font-medium text-zinc-800 dark:text-zinc-200; }
 .member-panel__note { @apply mt-1 text-xs text-zinc-500 dark:text-zinc-400; }
-.member-panel__add-bottom { @apply w-full rounded-md border border-dashed border-zinc-300 py-2 text-sm text-zinc-500 transition-colors hover:border-green-500 hover:text-green-600 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-green-500 dark:hover:text-green-400; }
+.member-panel__add-bottom { @apply flex w-full items-center justify-center gap-1 rounded-md border border-dashed border-zinc-300 py-2 text-sm text-zinc-500 transition-colors hover:border-green-500 hover:text-green-600 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-green-500 dark:hover:text-green-400; }
 </style>

@@ -43,6 +43,13 @@ type UpdateReq struct {
 }
 type UpdateRes struct{}
 
+// ReorderReq 标签拖拽排序（按新顺序整体提交，重写 sort）
+type ReorderReq struct {
+	g.Meta `path:"/tags/sort" tags:"Tag管理" method:"put" summary:"标签排序" operationId:"tag_reorder"`
+	model.TagReorderInput
+}
+type ReorderRes struct{}
+
 // DeleteReq 删除标签（从使用中的菜谱移除该标签，不删除菜谱）
 type DeleteReq struct {
 	g.Meta `path:"/tags/{id}" tags:"Tag管理" method:"delete" summary:"删除标签" operationId:"tag_delete"`

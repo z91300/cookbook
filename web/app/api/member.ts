@@ -165,14 +165,14 @@ export { deleteFn as delete };
  * **RequestBody**
  * ```ts
  * type RequestBody = {
+ *   // 展示排序
+ *   sort?: number
  *   // 成员名字
  *   name: string
  *   // 角色（爸爸 妈妈 儿子 妻子 妹妹，可自定义）
  *   role?: string
  *   // 备注（口味、忌口、过敏等）
  *   note?: string
- *   // 展示排序
- *   sort?: number
  * }
  * ```
  *
@@ -195,6 +195,11 @@ type updateConfig = {
   };
   body?: {
     /**
+     * 展示排序
+     */
+
+    sort?: number;
+    /**
      * 成员名字
      */
 
@@ -209,11 +214,6 @@ type updateConfig = {
      */
 
     note?: string;
-    /**
-     * 展示排序
-     */
-
-    sort?: number;
   };
 };
 

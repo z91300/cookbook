@@ -1,6 +1,9 @@
 <script setup lang="ts">
 // 右下角快捷导航：悬浮球 + 点击展开菜单（speed-dial）。
 // 收起时只占一个圆钮，避免常驻胶囊按钮遮挡移动端内容。
+// 未登录整体隐藏：这几个入口都需要登录后才能用（只读浏览不打扰）。
+const { isLoggedIn } = useAuth()
+
 const open = ref(false)
 
 const links = [
@@ -9,6 +12,11 @@ const links = [
   { label: '食谱编排', to: '/scheduling', icon: 'calendar' },
   { label: '设置', to: '/settings', icon: 'cog' },
 ] as const
+
+// 退出登录时收起菜单，避免残留的全屏遮罩挡住页面点击
+watch(isLoggedIn, (logged) => {
+  if (!logged) open.value = false
+})
 
 function onKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape') open.value = false
@@ -19,13 +27,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
 // 移动端返回手势 / 浏览器返回键：收起菜单而不是退出页面。
 // 菜单项点击不做 UI 关闭（避免关闭补偿回退与路由跳转竞态），靠路由切换卸载组件清理。
-useModalBackClose(() => open.value, () => {
+useModalBackClose(() => open.value && isLoggedIn.value, () => {
   open.value = false
 })
 </script>
 
 <template>
-  <Teleport to="body">
+  <Teleport v-if="isLoggedIn" to="body">
     <!-- 展开期间铺满全屏接管点击：点空白处收起 -->
     <div v-if="open" class="fixed inset-0 z-40" @click="open = false" />
 

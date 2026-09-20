@@ -385,7 +385,150 @@ export interface Cookbook_api_tag_v1_get_manage_list_res {
 
   list?: Cookbook_internal_model_tag_manage_item[];
 }
+export interface Cookbook_api_tag_v1_reorder_req {
+  /**
+   * 拖拽后的标签 id 顺序（完整顺序，从前往后）
+   */
+
+  ids: number[];
+}
+export type Cookbook_api_tag_v1_reorder_res = object;
 export type Cookbook_api_tag_v1_update_res = object;
+export interface Cookbook_api_user_v1_get_list_res {
+  /**
+   * 当前页数据（空页为 []）
+   */
+
+  list?: Cookbook_internal_model_user_item[];
+  /**
+   * 过滤后总条数
+   */
+
+  total?: number;
+}
+export interface Cookbook_api_user_v1_get_profile_res {
+  /**
+   * 用户 id
+   */
+
+  id?: number;
+  /**
+   * 登录名
+   */
+
+  username?: string;
+  /**
+   * 昵称
+   */
+
+  nickname?: string;
+  /**
+   * 是否管理员
+   */
+
+  isAdmin?: boolean;
+}
+export interface Cookbook_api_user_v1_login_req {
+  /**
+   * 登录名
+   */
+
+  username: string;
+  /**
+   * 密码
+   */
+
+  password: string;
+}
+export interface Cookbook_api_user_v1_login_res {
+  /**
+   * 访问令牌(access)，2 小时有效；请求头 Authorization: Bearer <token>
+   */
+
+  token?: string;
+  /**
+   * 刷新令牌(refresh)，30 天有效（滑动续期）；access 过期后调 /auth/refresh 换新
+   */
+
+  refreshToken?: string;
+  /**
+   * 访问令牌过期时间 Unix 秒
+   */
+
+  accessExpiresAt?: number;
+  /**
+   * 当前用户信息
+   */
+
+  user?: Cookbook_internal_model_user_profile;
+}
+export type Cookbook_api_user_v1_logout_req = object;
+export type Cookbook_api_user_v1_logout_res = object;
+export interface Cookbook_api_user_v1_refresh_req {
+  /**
+   * 登录或上次刷新返回的 refreshToken
+   */
+
+  refreshToken: string;
+}
+export interface Cookbook_api_user_v1_refresh_res {
+  /**
+   * 访问令牌(access)，2 小时有效；请求头 Authorization: Bearer <token>
+   */
+
+  token?: string;
+  /**
+   * 刷新令牌(refresh)，30 天有效（滑动续期）；access 过期后调 /auth/refresh 换新
+   */
+
+  refreshToken?: string;
+  /**
+   * 访问令牌过期时间 Unix 秒
+   */
+
+  accessExpiresAt?: number;
+}
+export interface Cookbook_api_user_v1_register_req {
+  /**
+   * 登录名
+   */
+
+  username: string;
+  /**
+   * 密码（明文，仅本次传输使用，落库为 bcrypt 哈希）
+   */
+
+  password: string;
+  /**
+   * 昵称，留空取用户名
+   */
+
+  nickname?: string;
+}
+export interface Cookbook_api_user_v1_register_res {
+  /**
+   * 访问令牌(access)，2 小时有效；请求头 Authorization: Bearer <token>
+   */
+
+  token?: string;
+  /**
+   * 刷新令牌(refresh)，30 天有效（滑动续期）；access 过期后调 /auth/refresh 换新
+   */
+
+  refreshToken?: string;
+  /**
+   * 访问令牌过期时间 Unix 秒
+   */
+
+  accessExpiresAt?: number;
+  /**
+   * 当前用户信息
+   */
+
+  user?: Cookbook_internal_model_user_profile;
+}
+export type Cookbook_api_user_v1_reset_password_res = object;
+export type Cookbook_api_user_v1_update_res = object;
 export interface Cookbook_internal_model_favorite_folder {
   /**
    * 收藏夹 id
@@ -640,4 +783,68 @@ export interface Cookbook_internal_model_tag_manage_item {
    */
 
   recipeCount?: number;
+}
+export interface Cookbook_internal_model_user_item {
+  /**
+   * 用户 id
+   */
+
+  id?: number;
+  /**
+   * 登录名
+   */
+
+  username?: string;
+  /**
+   * 昵称
+   */
+
+  nickname?: string;
+  /**
+   * 是否管理员
+   */
+
+  isAdmin?: boolean;
+  /**
+   * 状态：0=禁用 1=正常
+   */
+
+  status?: number;
+  /**
+   * 创建的菜谱数量（不含已删除）
+   */
+
+  recipeCount?: number;
+  /**
+   * 最近登录时间 Unix 秒，0=从未登录
+   */
+
+  lastLoginAt?: number;
+  /**
+   * 注册时间 Unix 秒
+   */
+
+  createdAt?: number;
+}
+export interface Cookbook_internal_model_user_profile {
+  /**
+   * 用户 id
+   */
+
+  id?: number;
+  /**
+   * 登录名
+   */
+
+  username?: string;
+  /**
+   * 昵称
+   */
+
+  nickname?: string;
+  /**
+   * 是否管理员
+   */
+
+  isAdmin?: boolean;
 }

@@ -3,6 +3,9 @@
 import { apis } from '~/api'
 import type { Cookbook_internal_model_favorite_folder, Cookbook_internal_model_recipe_list_item } from '~/api/components'
 
+// 未登录只能看：收藏夹的建/改/删、移除收藏等写入口一律隐藏
+const { canEdit } = useAuth()
+
 const folders = ref<Cookbook_internal_model_favorite_folder[]>([])
 const foldersError = ref('')
 const foldersLoading = ref(false)
@@ -139,8 +142,9 @@ async function removeRecipe(folderId: number, recipeId: number) {
             <span class="folder-card__name">{{ folder.name }}</span>
             <span class="folder-card__count">{{ folder.recipeCount }} 个菜谱</span>
           </button>
-          <button type="button" class="text-btn text-btn--edit" @click="startRename(folder)">重命名</button>
+          <button v-if="canEdit" type="button" class="text-btn text-btn--edit" @click="startRename(folder)">重命名</button>
           <button
+            v-if="canEdit"
             type="button"
             class="text-btn text-btn--delete"
             :disabled="deletingId === folder.id"
@@ -183,6 +187,7 @@ async function removeRecipe(folderId: number, recipeId: number) {
               <div class="folder-recipe__body">
                 <h3 class="folder-recipe__title">{{ recipe.title }}</h3>
                 <button
+                  v-if="canEdit"
                   type="button"
                   class="text-btn text-btn--delete text-btn--xs mt-1"
                   :disabled="removingRecipeId === recipe.id"
@@ -195,8 +200,8 @@ async function removeRecipe(folderId: number, recipeId: number) {
       </div>
     </div>
 
-    <!-- 新建收藏夹 -->
-    <div class="mt-6 flex gap-2">
+    <!-- 新建收藏夹（未登录只读，不展示） -->
+    <div v-if="canEdit" class="mt-6 flex gap-2">
       <p v-if="createError" class="error-text mr-2 self-center">{{ createError }}</p>
       <input
         v-model="newFolderName"

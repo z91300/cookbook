@@ -9,6 +9,7 @@ import (
 
 	"cookbook/internal/dao"
 	"cookbook/internal/logic/attachment"
+	"cookbook/internal/logic/auth"
 	"cookbook/internal/model"
 	"cookbook/internal/model/do"
 	"cookbook/internal/service"
@@ -241,6 +242,9 @@ func (s *sRecipe) GetOne(ctx context.Context, id int64) (out *model.RecipeDetail
 
 // Update 编辑保存：标量列按需更新；ingredients/tools/steps 序列化为 JSON 整体覆盖
 func (s *sRecipe) Update(ctx context.Context, in model.RecipeUpdateInput) (err error) {
+	if err = auth.MustLogin(ctx); err != nil {
+		return err
+	}
 	// 存在性校验
 	count, err := dao.Recipes.Ctx(ctx).
 		Where(dao.Recipes.Columns().Id, in.Id).
@@ -376,8 +380,11 @@ func (s *sRecipe) saveRecipeColumns(ctx context.Context, recipeId int64, in save
 	return nil
 }
 
-// Create 新建食谱：插入行（user_id=0, source=manual）后复用 saveRecipeColumns 写列表字段
+// Create 新建食谱：插入行（user_id=当前登录用户，未登录为 0=系统；source=manual）后复用 saveRecipeColumns 写列表字段
 func (s *sRecipe) Create(ctx context.Context, in model.RecipeCreateInput) (id int64, err error) {
+	if err = auth.MustLogin(ctx); err != nil {
+		return 0, err
+	}
 	// 步骤/食材内容非空校验（与 Update 同规则）
 	for i, step := range in.Steps {
 		if step.Content == "" {
@@ -389,10 +396,15 @@ func (s *sRecipe) Create(ctx context.Context, in model.RecipeCreateInput) (id in
 			return 0, gerror.Newf("第 %d 个食材名不能为空", i+1)
 		}
 	}
+	// 记录作者（未登录时保持 0=系统），便于后续按用户统计
+	authorId := int64(0)
+	if u := auth.Current(ctx); u != nil {
+		authorId = u.Id
+	}
 	now := gtime.Timestamp()
 	id, err = dao.Recipes.Ctx(ctx).
 		Data(g.Map{
-			"user_id":    0,
+			"user_id":    authorId,
 			"title":      in.Title,
 			"summary":    in.Summary,
 			"tips":       in.Tips,
@@ -425,8 +437,11 @@ func (s *sRecipe) Create(ctx context.Context, in model.RecipeCreateInput) (id in
 	return id, nil
 }
 
-// Delete 逻辑删除食谱（置 is_deleted=1）
+// Delete 逻辑删除食谱（置 is_deleted=1）；仅管理员可操作
 func (s *sRecipe) Delete(ctx context.Context, id int64) (err error) {
+	if err = auth.MustAdmin(ctx); err != nil {
+		return err
+	}
 	count, err := dao.Recipes.Ctx(ctx).
 		Where(dao.Recipes.Columns().Id, id).
 		Where(dao.Recipes.Columns().IsDeleted, 0).

@@ -200,8 +200,19 @@ ssh-copy-id -i deploy_key.pub <user>@<your-server>
 sudo usermod -aG docker <user>     # 重新登录后生效
 ```
 
-然后在 GitHub 仓库 Secrets 里填四项：`DEPLOY_HOST`、`DEPLOY_USER`、`DEPLOY_SSH_KEY`（第 1 步生成的
+然后在 GitHub 仓库填四项 Secret：`DEPLOY_HOST`、`DEPLOY_USER`、`DEPLOY_SSH_KEY`（第 1 步生成的
 私钥全文）、`DEPLOY_PORT`（可选，默认 22）。
+
+⚠️ **必须建在 Repository secrets，不是 Environment secrets**（页面顶部的层级选择容易看漏）：
+环境级 Secret 只在**声明了同名 environment 的 job** 里可见，而本项目的 `deploy` job 没有声明
+`environment:`，于是 job 读不到值，drone-ssh 会抛一句很含糊的 `error: missing server host`。
+两个修法：① 把 Secret 挪到 Repository secrets（推荐，最省事）；② 想保留环境级（可挂审批规则），
+就在 `deploy` job 上加 `environment: self`（环境名大小写敏感；配了 required reviewers 的话
+每次部署都会等人工确认）。
+
+`deploy` job 里已经加了 `Check deploy secrets` 前置步骤，Secret 缺失时会直接指出缺哪个、该放哪一层，
+不会再只给一句 `missing server host`；另外 `script_stop` 在 ssh-action v1 里已不是合法输入
+（v0.x 时代参数），失败判定由脚本内的 `set -e` 与显式 `exit 1` 负责，不要加回去。
 
 **最容易卡住的一步：私有镜像要先登录。** GHCR 的 package 默认是私有的，服务器上没有凭据时
 `docker compose pull` 直接 403：

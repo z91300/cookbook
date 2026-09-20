@@ -105,9 +105,9 @@ func renderTemplate(tpl string, d *model.RecipeDetail) string {
 		"{recipe.steps}", formatSteps(d.Steps),
 		"{recipe.stepCount}", gconv.String(len(d.Steps)),
 		"{recipe.ingredientCount}", gconv.String(len(d.Ingredients)),
-		"{recipe.calories}", numText(d.Calories, " kcal/份"),
+		"{recipe.calories}", numText(d.Calories, " kcal"),
 		"{recipe.difficulty}", difficultyText(d.Difficulty),
-		"{recipe.servings}", numText(d.Servings, " 人份"),
+		"{recipe.servings}", numText(d.Servings, ""),
 		"{recipe.cookMinutes}", numText(d.CookMinutes, " 分钟"),
 		"{recipe.mealMask}", mealMaskText(d.MealMask),
 		"{recipe.infoLine}", infoLine(d),
@@ -172,14 +172,11 @@ func tipsText(tips string) string {
 	return tips
 }
 
-// infoLine 信息条：约 X 分钟 · Y 人份 · 难度Z（按已填字段拼接，全未填返回空）
+// infoLine 信息条：约 X 分钟 · 难度Z（按已填字段拼接，全未填返回空；不含「人份」）
 func infoLine(d *model.RecipeDetail) string {
-	parts := make([]string, 0, 3)
+	parts := make([]string, 0, 2)
 	if d.CookMinutes > 0 {
 		parts = append(parts, "约 "+gconv.String(d.CookMinutes)+" 分钟")
-	}
-	if d.Servings > 0 {
-		parts = append(parts, gconv.String(d.Servings)+" 人份")
 	}
 	if t := difficultyText(d.Difficulty); t != "" {
 		parts = append(parts, "难度"+t)

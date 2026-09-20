@@ -713,8 +713,7 @@ useModalBackClose(() => ctxMenu.value.item !== null, closeCtxMenu)
             <div class="detail-modal__meta">
               <span v-if="detail.difficulty" class="tag-badge tag-badge--md">难度：{{ difficultyText[detail.difficulty] || '未填' }}</span>
               <span v-if="detail.cookMinutes" class="tag-badge tag-badge--md">耗时：{{ detail.cookMinutes }} 分钟</span>
-              <span v-if="detail.calories" class="tag-badge tag-badge--md">热量：{{ detail.calories }} kcal/份</span>
-              <span v-if="detail.servings" class="tag-badge tag-badge--md">{{ detail.servings }} 人份</span>
+              <span v-if="detail.calories" class="tag-badge tag-badge--md">热量：{{ detail.calories }} kcal</span>
             </div>
             <div class="detail-modal__tags">
               <span v-if="detail.mealMask" class="tag-badge tag-badge--md tag-badge--amber">{{ mealText(detail.mealMask) }}</span>

@@ -132,8 +132,8 @@ jobs:
             set -e
             # COMPOSE_FILE 指定编排文件即可，无需 cd（项目目录/项目名与"进目录再执行"一致）。
             # 只更新单个服务时在末尾加服务名，如 `... --wait --wait-timeout 300 cookbook`。
-            export COMPOSE_FILE=/opt/zspace/docker-compose.yml
-            if ! docker compose up -d --pull always --wait --wait-timeout 300; then
-              docker compose logs --tail 50 || true
+            export COMPOSE_FILE=/opt/zspace/vps/docker-compose.yaml
+            if ! docker compose up -d --pull always --wait --wait-timeout 300 cookbook; then
+              docker compose logs --tail 50 cookbook || true
               exit 1
             fi

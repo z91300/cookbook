@@ -1,6 +1,8 @@
 <script setup lang="ts">
-// 设置页：标签管理（管理员）/ 用户管理（管理员）/ 通用设置 / 关于
+// 设置页：菜谱管理（管理员）/ 标签管理（管理员）/ 用户管理（管理员）/ 通用设置 / 关于
 import { apis } from '~/api'
+// 拖拽排序统一用 vue-draggable-plus（SortableJS 的 Vue 封装），不再手写 HTML5 拖拽
+import { VueDraggable } from 'vue-draggable-plus'
 
 const { isAdmin, isLoggedIn, canEdit, user, fetchProfile } = useAuth()
 
@@ -147,48 +149,9 @@ const deleteTagTarget = ref<TagRow | null>(null)
 const deletingTag = ref(false)
 const deleteTagError = ref('')
 
-// 拖拽排序：松手后把整表顺序提交给后端（PUT /tags/sort），失败则按服务端顺序回滚
-const dragTagId = ref<number | null>(null) // 正在拖的行
-const dragOverTagId = ref<number | null>(null) // 悬停落点行
+// 拖拽排序：交给 vue-draggable-plus（模板上的 VueDraggable），松手后把整表顺序提交给后端
+// （PUT /tags/sort），失败则重新拉取回到服务端顺序
 const savingOrder = ref(false)
-
-function clearTagDrag() {
-  dragTagId.value = null
-  dragOverTagId.value = null
-}
-
-function onTagDragStart(e: DragEvent, tag: TagRow) {
-  if (savingOrder.value || renamingId.value !== null) return
-  dragTagId.value = tag.id
-  tagError.value = ''
-  if (e.dataTransfer) {
-    e.dataTransfer.effectAllowed = 'move'
-    // Firefox 必须设置 data 才会真正开始拖拽
-    e.dataTransfer.setData('text/plain', `tag:${tag.id}`)
-  }
-}
-
-function onTagDragOver(e: DragEvent, tag: TagRow) {
-  if (dragTagId.value === null || dragTagId.value === tag.id) return
-  e.preventDefault()
-  if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'
-  dragOverTagId.value = tag.id
-}
-
-/** 松手：把被拖的行插到落点行所在位置，再整体提交顺序 */
-async function onTagDrop(target: TagRow) {
-  const fromId = dragTagId.value
-  clearTagDrag()
-  if (fromId === null || fromId === target.id) return
-  const from = tagRows.value.findIndex(t => t.id === fromId)
-  const to = tagRows.value.findIndex(t => t.id === target.id)
-  if (from < 0 || to < 0) return
-  const next = [...tagRows.value]
-  const [moved] = next.splice(from, 1)
-  next.splice(to, 0, moved)
-  tagRows.value = next
-  await saveTagOrder()
-}
 
 /** 提交当前顺序；失败时重新拉取，回到服务端顺序 */
 async function saveTagOrder() {
@@ -515,13 +478,253 @@ useModalBackClose(() => resetTarget.value !== null, cancelResetPassword)
 useModalBackClose(() => userConfirm.value !== null, cancelUserConfirm)
 useModalBackClose(() => deleteTagTarget.value !== null, cancelDeleteTag)
 
+// ============ 菜谱管理（仅管理员）：表格 + 分类筛选 + 拖拽排序 + 快速打标签 ============
+interface ManageRow {
+  id: number
+  title: string
+  coverUrl: string
+  tags: { id: number, name: string }[]
+  difficulty: number
+  cookMinutes: number
+  calories: number
+  mealMask: number
+  sort: number
+  updatedAt: number
+}
+
+const manageLoading = ref(true)
+// 服务端顺序（手动顺序）；拖拽松手后本地立即同步为同一顺序，避免视觉闪回
+const manageRows = ref<ManageRow[]>([])
+const manageError = ref('')
+const manageTip = ref('')
+const manageSavingOrder = ref(false)
+
+// 筛选：标题关键词 + 标签多选（AND 叠加，与首页一致）
+const manageKeyword = ref('')
+const manageTagIds = ref<number[]>([])
+
+// 表头排序：manual=手动顺序（可拖拽）；其余为「仅当前视图」的客户端排序，不落库
+type ManageSortKey = 'manual' | 'title' | 'difficulty' | 'cookMinutes' | 'calories' | 'updatedAt'
+const manageSortKey = ref<ManageSortKey>('manual')
+const manageSortAsc = ref(true)
+const MANAGE_SORT_LABEL: Record<Exclude<ManageSortKey, 'manual'>, string> = {
+  title: '标题',
+  difficulty: '难度',
+  cookMinutes: '耗时',
+  calories: '热量',
+  updatedAt: '更新时间',
+}
+
+// 视图行（= manageRows 经筛选 + 表头排序）：拖着的是它，松手后再映射回全局顺序
+const visibleRows = ref<ManageRow[]>([])
+const manageManual = computed(() => manageSortKey.value === 'manual')
+const manageHasFilter = computed(() => manageTagIds.value.length > 0 || manageKeyword.value.trim() !== '')
+
+function rebuildVisible() {
+  let rows = manageRows.value
+  const kw = manageKeyword.value.trim().toLowerCase()
+  if (kw) rows = rows.filter(r => r.title.toLowerCase().includes(kw))
+  if (manageTagIds.value.length) {
+    rows = rows.filter(r => manageTagIds.value.every(id => r.tags.some(t => t.id === id)))
+  }
+  if (manageSortKey.value !== 'manual') {
+    const key = manageSortKey.value
+    const dir = manageSortAsc.value ? 1 : -1
+    rows = [...rows].sort((a, b) => {
+      const av = a[key]
+      const bv = b[key]
+      if (typeof av === 'string' || typeof bv === 'string') {
+        return String(av).localeCompare(String(bv), 'zh-Hans-CN') * dir
+      }
+      return (Number(av) - Number(bv)) * dir
+    })
+  }
+  visibleRows.value = [...rows]
+}
+
+watch([manageRows, manageKeyword, manageTagIds, manageSortKey, manageSortAsc], rebuildVisible, {
+  deep: true,
+  immediate: true,
+})
+
+async function loadManage() {
+  manageLoading.value = true
+  manageError.value = ''
+  try {
+    const res = await apis.recipe.getManageList()
+    manageRows.value = (res.list ?? []).map(r => ({
+      id: r.id!,
+      title: r.title ?? '',
+      coverUrl: r.coverUrl ?? '',
+      tags: (r.tags ?? []).map(t => ({ id: t.id!, name: t.name ?? '' })),
+      difficulty: r.difficulty ?? 0,
+      cookMinutes: r.cookMinutes ?? 0,
+      calories: r.calories ?? 0,
+      mealMask: r.mealMask ?? 0,
+      sort: r.sort ?? 0,
+      updatedAt: r.updatedAt ?? 0,
+    }))
+  }
+  catch (e) {
+    manageError.value = e instanceof Error ? e.message : '加载菜谱失败'
+  }
+  manageLoading.value = false
+}
+
+/** 表头排序三态：升序 → 降序 → 回到手动顺序 */
+function setManageSort(key: Exclude<ManageSortKey, 'manual'>) {
+  if (manageSortKey.value !== key) {
+    manageSortKey.value = key
+    manageSortAsc.value = true
+    return
+  }
+  if (manageSortAsc.value) {
+    manageSortAsc.value = false
+    return
+  }
+  manageSortKey.value = 'manual'
+  manageSortAsc.value = true
+}
+
+function sortMark(key: Exclude<ManageSortKey, 'manual'>): string {
+  if (manageSortKey.value !== key) return ''
+  return manageSortAsc.value ? '▲' : '▼'
+}
+
+function toggleManageTag(id: number) {
+  const i = manageTagIds.value.indexOf(id)
+  if (i >= 0) manageTagIds.value.splice(i, 1)
+  else manageTagIds.value.push(id)
+}
+
+function clearManageFilter() {
+  manageKeyword.value = ''
+  manageTagIds.value = []
+}
+
+/**
+ * 拖拽松手：把「当前视图」的新顺序映射回全局顺序后整体提交。
+ * 筛选态下未参与筛选的行保持原位 —— 后端要求提交全部菜谱的完整顺序（不重不漏）。
+ */
+async function onManageDragEnd() {
+  if (manageSavingOrder.value) return
+  const visibleIds = visibleRows.value.map(r => r.id)
+  const inView = new Set(visibleIds)
+  const byId = new Map(manageRows.value.map(r => [r.id, r]))
+  const next: ManageRow[] = []
+  let i = 0
+  for (const row of manageRows.value) {
+    next.push(inView.has(row.id) ? byId.get(visibleIds[i++])! : row)
+  }
+  manageRows.value = next
+  await saveManageOrder()
+}
+
+async function saveManageOrder() {
+  if (manageSavingOrder.value) return
+  manageSavingOrder.value = true
+  manageError.value = ''
+  try {
+    await apis.recipe.reorder({ body: { ids: manageRows.value.map(r => r.id) } })
+    showManageTip('顺序已保存')
+  }
+  catch (e) {
+    manageError.value = e instanceof Error ? e.message : '保存顺序失败'
+    await loadManage() // 回到服务端顺序
+  }
+  manageSavingOrder.value = false
+}
+
+function showManageTip(text: string) {
+  manageTip.value = text
+  setTimeout(() => (manageTip.value = ''), 2500)
+}
+
+// ---- 快速打标签：单行弹窗，勾选即提交（复用 PUT /recipes/{id} 的 tagIds 整体覆盖） ----
+const tagTarget = ref<ManageRow | null>(null)
+const tagDraft = ref<number[]>([])
+const tagSaving = ref(false)
+const tagModalError = ref('')
+
+function openTagModal(row: ManageRow) {
+  tagTarget.value = row
+  tagDraft.value = row.tags.map(t => t.id)
+  tagModalError.value = ''
+}
+
+function closeTagModal() {
+  if (tagSaving.value) return
+  tagTarget.value = null
+}
+
+function toggleTagDraft(id: number) {
+  const i = tagDraft.value.indexOf(id)
+  if (i >= 0) tagDraft.value.splice(i, 1)
+  else tagDraft.value.push(id)
+}
+
+async function saveTags() {
+  const row = tagTarget.value
+  if (!row || tagSaving.value) return
+  tagSaving.value = true
+  tagModalError.value = ''
+  try {
+    await apis.recipe.update({ pathParams: { id: row.id }, body: { tagIds: [...tagDraft.value] } })
+    const picked = tagRows.value.filter(t => tagDraft.value.includes(t.id))
+    row.tags = picked.map(t => ({ id: t.id, name: t.name }))
+    tagTarget.value = null
+    rebuildVisible()
+    showManageTip(`「${row.title}」标签已更新`)
+    await loadTags() // 标签用量变了，同步标签管理页的计数
+  }
+  catch (e) {
+    tagModalError.value = e instanceof Error ? e.message : '保存失败'
+  }
+  tagSaving.value = false
+}
+
+// ---- 表格展示辅助 ----
+// 弹窗滚动锁与返回手势关闭必须放在 tagTarget 声明之后：
+// useBodyScrollLock 会立刻求值谓词，写在上面会命中 const 的暂时性死区（TDZ）
+useBodyScrollLock([() => tagTarget.value !== null])
+useModalBackClose(() => tagTarget.value !== null, closeTagModal)
+
+const DIFFICULTY_TEXT = ['—', '简单', '中等', '较难']
+
+/** 当前排序状态文案（手动顺序 / 按某列排序） */
+const manageSortLabel = computed(() => {
+  if (manageManual.value) return '手动顺序（可拖拽）'
+  const key = manageSortKey.value as Exclude<ManageSortKey, 'manual'>
+  return `按「${MANAGE_SORT_LABEL[key]}」排序（拖拽已停用）`
+})
+
+function difficultyText(d: number): string {
+  return DIFFICULTY_TEXT[d] ?? '—'
+}
+
+function mealText(mask: number): string {
+  if (!mask) return '—'
+  return [[1, '早'], [2, '午'], [4, '晚'], [8, '加餐']]
+    .filter(([bit]) => mask & (bit as number))
+    .map(([, label]) => label as string)
+    .join('·')
+}
+
+function dateText(ts: number): string {
+  if (!ts) return '—'
+  const d = new Date(ts * 1000)
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
+
 // ============ 页签 ============
 // 标签管理 / 用户管理仅管理员可见；通用设置、关于所有人可见
-type SettingsTab = 'tags' | 'users' | 'general' | 'about'
+type SettingsTab = 'recipes' | 'tags' | 'users' | 'general' | 'about'
 const activeTab = ref<SettingsTab>('general')
 const settingsTabs = computed<Array<{ key: SettingsTab, label: string }>>(() => {
   if (isAdmin.value) {
     return [
+      { key: 'recipes', label: '菜谱管理' },
       { key: 'tags', label: '标签管理' },
       { key: 'users', label: '用户管理' },
       { key: 'general', label: '通用设置' },
@@ -536,20 +739,23 @@ const settingsTabs = computed<Array<{ key: SettingsTab, label: string }>>(() => 
 
 onMounted(() => {
   load()
-  // 标签/用户管理仅管理员可用，非管理员不请求，避免无谓的 403
+  // 菜谱/标签/用户管理仅管理员可用，非管理员不请求，避免无谓的 403
   if (isAdmin.value) {
+    loadManage()
     loadTags()
     loadUsers()
   }
   else {
     tagsLoading.value = false
+    manageLoading.value = false
   }
 })
 
-// 登录态异步就绪：管理员落在标签管理并补拉管理数据（含在本页完成登录的情形）
+// 登录态异步就绪：管理员落在菜谱管理并补拉管理数据（含在本页完成登录的情形）
 watch(isAdmin, (admin) => {
-  activeTab.value = admin ? 'tags' : 'general'
+  activeTab.value = admin ? 'recipes' : 'general'
   if (admin && !userRows.value.length && !usersLoading.value) {
+    loadManage()
     loadTags()
     loadUsers()
   }
@@ -557,7 +763,8 @@ watch(isAdmin, (admin) => {
 </script>
 
 <template>
-  <main class="page page--narrow">
+  <!-- 菜谱管理是宽表格，这一页签下用宽容器（max-w-6xl），其余页签保持窄栏（max-w-3xl） -->
+  <main class="page" :class="activeTab === 'recipes' ? '' : 'page--narrow'">
     <div class="page-header">
       <h1 class="page-title">设置</h1>
       <NuxtLink to="/" class="text-btn text-btn--accent">← 返回首页</NuxtLink>
@@ -589,6 +796,141 @@ watch(isAdmin, (admin) => {
       </button>
     </div>
 
+    <!-- 菜谱管理（仅管理员）：表格 + 分类筛选 + 拖拽排序 + 快速打标签 -->
+    <section v-if="isAdmin && activeTab === 'recipes'" class="mt-6">
+      <div class="flex items-center justify-between">
+        <h2 class="section-title">菜谱管理</h2>
+        <span v-if="manageTip" class="saved-tip">{{ manageTip }}</span>
+      </div>
+      <p class="form-hint mt-1">
+        拖动左侧 ⠿ 调整菜谱顺序（松手即保存，<strong>首页菜谱墙同步</strong>；筛选后拖拽只在筛选结果之间调序，其余菜谱位置不动）。
+        点表头可按列排序，此时拖拽停用，再点一次回到手动顺序。标签列的
+        <PlusIcon class="inline size-3 align-[-1px]" />
+        可给该菜谱快速打标签。
+      </p>
+
+      <p v-if="manageError" class="error-alert mt-2">{{ manageError }}</p>
+
+      <!-- 筛选：标题关键词 + 标签多选（AND 叠加） -->
+      <div class="manage-filter">
+        <input
+          v-model="manageKeyword"
+          type="search"
+          placeholder="搜索标题…"
+          class="input input--sm manage-filter__kw"
+        >
+        <div class="manage-filter__tags">
+          <button
+            v-for="t in tagRows"
+            :key="t.id"
+            type="button"
+            class="manage-chip"
+            :class="{ 'manage-chip--active': manageTagIds.includes(t.id) }"
+            @click="toggleManageTag(t.id)"
+          >{{ t.name }}</button>
+          <span v-if="!tagRows.length" class="form-hint">还没有标签，可先去「标签管理」新建</span>
+        </div>
+        <button
+          v-if="manageHasFilter"
+          type="button"
+          class="text-btn text-btn--muted text-btn--xs"
+          @click="clearManageFilter"
+        >清空筛选</button>
+      </div>
+
+      <p class="form-hint mt-2">
+        共 {{ manageRows.length }} 道<template v-if="manageHasFilter"> · 当前显示 {{ visibleRows.length }} 道</template>
+        · {{ manageSortLabel }}
+      </p>
+
+      <div v-if="manageLoading" class="empty-note mt-3 text-sm">加载中…</div>
+      <p v-else-if="!visibleRows.length" class="empty-note mt-3 text-sm">
+        {{ manageRows.length ? '没有匹配的菜谱' : '暂无菜谱' }}
+      </p>
+      <ClientOnly v-else>
+        <div class="manage-table__wrap">
+          <table class="manage-table">
+            <thead>
+              <tr>
+                <th class="manage-table__col--handle" />
+                <th class="manage-table__col--idx">#</th>
+                <th class="manage-table__col--cover">封面</th>
+                <th class="manage-table__th--sortable" @click="setManageSort('title')">
+                  标题 <span class="manage-table__mark">{{ sortMark('title') }}</span>
+                </th>
+                <th>标签</th>
+                <th class="manage-table__th--sortable" @click="setManageSort('difficulty')">
+                  难度 <span class="manage-table__mark">{{ sortMark('difficulty') }}</span>
+                </th>
+                <th class="manage-table__th--sortable" @click="setManageSort('cookMinutes')">
+                  耗时 <span class="manage-table__mark">{{ sortMark('cookMinutes') }}</span>
+                </th>
+                <th class="manage-table__th--sortable" @click="setManageSort('calories')">
+                  热量 <span class="manage-table__mark">{{ sortMark('calories') }}</span>
+                </th>
+                <th>时段</th>
+                <th class="manage-table__th--sortable" @click="setManageSort('updatedAt')">
+                  更新 <span class="manage-table__mark">{{ sortMark('updatedAt') }}</span>
+                </th>
+              </tr>
+            </thead>
+            <VueDraggable
+              v-model="visibleRows"
+              tag="tbody"
+              handle=".manage-row__handle"
+              :animation="150"
+              :force-fallback="true"
+              :disabled="!manageManual || manageSavingOrder"
+              ghost-class="manage-row--ghost"
+              drag-class="manage-row--drag"
+              @end="onManageDragEnd"
+            >
+              <tr v-for="(row, idx) in visibleRows" :key="row.id" class="manage-row" :data-recipe-id="row.id">
+                <td>
+                  <span
+                    class="manage-row__handle"
+                    :class="{ 'manage-row__handle--off': !manageManual }"
+                    :title="manageManual ? '拖拽调整顺序' : '切回手动顺序才能拖拽'"
+                  >⠿</span>
+                </td>
+                <td class="manage-table__idx">{{ idx + 1 }}</td>
+                <td>
+                  <img
+                    v-if="row.coverUrl"
+                    :src="thumbUrl(row.coverUrl)"
+                    :alt="row.title"
+                    class="manage-row__cover"
+                    loading="lazy"
+                  >
+                  <div v-else class="manage-row__cover manage-row__cover--empty">无</div>
+                </td>
+                <td class="manage-row__title" :title="row.title">{{ row.title }}</td>
+                <td>
+                  <div class="manage-row__tags">
+                    <span v-for="t in row.tags" :key="t.id" class="manage-tag">{{ t.name }}</span>
+                    <span v-if="!row.tags.length" class="manage-tag manage-tag--empty">未打标</span>
+                    <button
+                      type="button"
+                      class="manage-tag__add"
+                      title="快速打标签"
+                      @click="openTagModal(row)"
+                    >
+                      <PlusIcon class="size-3" />
+                    </button>
+                  </div>
+                </td>
+                <td>{{ difficultyText(row.difficulty) }}</td>
+                <td>{{ row.cookMinutes ? `${row.cookMinutes} 分` : '—' }}</td>
+                <td>{{ row.calories ? `${row.calories} kcal` : '—' }}</td>
+                <td>{{ mealText(row.mealMask) }}</td>
+                <td class="manage-table__date">{{ dateText(row.updatedAt) }}</td>
+              </tr>
+            </VueDraggable>
+          </table>
+        </div>
+      </ClientOnly>
+    </section>
+
     <!-- 标签管理 -->
     <section v-show="activeTab === 'tags'" class="mt-6">
       <div class="flex items-center justify-between">
@@ -600,53 +942,58 @@ watch(isAdmin, (admin) => {
       <p v-if="tagError" class="error-alert mt-2">{{ tagError }}</p>
 
       <div v-if="tagsLoading" class="empty-note mt-3 text-sm">加载中…</div>
-      <ul v-else class="settings-list">
-        <li v-if="!tagRows.length" class="empty-note px-3 py-4 text-sm">暂无标签</li>
-        <li
-          v-for="tag in tagRows"
-          :key="tag.id"
-          class="settings-list__item"
-          :class="{
-            'settings-list__item--dragging': dragTagId === tag.id,
-            'settings-list__item--drop': dragOverTagId === tag.id,
-            'settings-list__item--busy': savingOrder,
-          }"
-          :draggable="!savingOrder && renamingId === null"
-          @dragstart="onTagDragStart($event, tag)"
-          @dragover="onTagDragOver($event, tag)"
-          @drop.prevent="onTagDrop(tag)"
-          @dragend="clearTagDrag"
+      <p v-else-if="!tagRows.length" class="empty-note px-3 py-4 text-sm">暂无标签</p>
+      <ClientOnly v-else>
+        <VueDraggable
+          v-model="tagRows"
+          tag="ul"
+          class="settings-list"
+          handle=".settings-list__handle"
+          :animation="150"
+          :force-fallback="true"
+          :disabled="savingOrder || renamingId !== null"
+          ghost-class="settings-list__item--drop"
+          drag-class="settings-list__item--dragging"
+          @end="saveTagOrder"
         >
-          <span v-if="renamingId !== tag.id" class="settings-list__handle" title="拖动调整顺序">⠿</span>
-          <template v-if="renamingId === tag.id">
-            <input
-              v-model="renameValue"
-              type="text"
-              maxlength="20"
-              class="input input--sm min-w-0 flex-1"
-              @keyup.enter="confirmRename"
-              @keyup.esc="cancelRename"
-            >
-            <button
-              type="button"
-              class="btn btn--primary btn--xs"
-              :disabled="renamingBusy || !renameValue.trim()"
-              @click="confirmRename"
-            >{{ renamingBusy ? '保存中…' : '保存' }}</button>
-            <button type="button" class="btn btn--outline btn--xs" @click="cancelRename">取消</button>
-          </template>
-          <template v-else>
-            <span class="settings-list__name">{{ tag.name }}</span>
-            <span class="settings-list__count">{{ tag.recipeCount }} 道菜谱</span>
-            <button type="button" class="text-btn text-btn--edit text-btn--xs" @click="startRename(tag)">重命名</button>
-            <button
-              type="button"
-              class="text-btn text-btn--delete text-btn--xs"
-              @click="askDeleteTag(tag)"
-            >删除</button>
-          </template>
-        </li>
-      </ul>
+          <li
+            v-for="tag in tagRows"
+            :key="tag.id"
+            class="settings-list__item"
+            :class="{ 'settings-list__item--busy': savingOrder }"
+            :data-tag-id="tag.id"
+          >
+            <span v-if="renamingId !== tag.id" class="settings-list__handle" title="拖动调整顺序">⠿</span>
+            <template v-if="renamingId === tag.id">
+              <input
+                v-model="renameValue"
+                type="text"
+                maxlength="20"
+                class="input input--sm min-w-0 flex-1"
+                @keyup.enter="confirmRename"
+                @keyup.esc="cancelRename"
+              >
+              <button
+                type="button"
+                class="btn btn--primary btn--xs"
+                :disabled="renamingBusy || !renameValue.trim()"
+                @click="confirmRename"
+              >{{ renamingBusy ? '保存中…' : '保存' }}</button>
+              <button type="button" class="btn btn--outline btn--xs" @click="cancelRename">取消</button>
+            </template>
+            <template v-else>
+              <span class="settings-list__name">{{ tag.name }}</span>
+              <span class="settings-list__count">{{ tag.recipeCount }} 道菜谱</span>
+              <button type="button" class="text-btn text-btn--edit text-btn--xs" @click="startRename(tag)">重命名</button>
+              <button
+                type="button"
+                class="text-btn text-btn--delete text-btn--xs"
+                @click="askDeleteTag(tag)"
+              >删除</button>
+            </template>
+          </li>
+        </VueDraggable>
+      </ClientOnly>
 
       <div class="mt-3 flex gap-2">
         <input
@@ -944,6 +1291,42 @@ watch(isAdmin, (admin) => {
       </div>
     </div>
   </Teleport>
+  <!-- 快速打标签弹窗（菜谱管理表格行内 ＋ 打开） -->
+  <Teleport to="body">
+    <div
+      v-if="tagTarget"
+      class="modal-overlay modal-overlay--confirm"
+      @click.self="closeTagModal"
+    >
+      <div class="modal-panel max-w-sm p-6">
+        <h3 class="modal-title--sm">快速打标签</h3>
+        <p class="delete-tag-modal__text">
+          为
+          <span class="manage-tag-modal__name">「{{ tagTarget.title }}」</span>
+          选择标签（保存后覆盖该菜谱原有标签）：
+        </p>
+        <div class="manage-tag-picker">
+          <label v-for="t in tagRows" :key="t.id" class="manage-tag-picker__item">
+            <input
+              type="checkbox"
+              class="accent-green-600"
+              :checked="tagDraft.includes(t.id)"
+              @change="toggleTagDraft(t.id)"
+            >
+            <span class="min-w-0 truncate">{{ t.name }}</span>
+          </label>
+          <p v-if="!tagRows.length" class="empty-note py-3 text-xs">还没有标签，可先去「标签管理」新建</p>
+        </div>
+        <p v-if="tagModalError" class="error-text mt-2">{{ tagModalError }}</p>
+        <div class="delete-tag-modal__actions">
+          <button type="button" class="btn btn--outline" :disabled="tagSaving" @click="closeTagModal">取消</button>
+          <button type="button" class="btn btn--primary" :disabled="tagSaving" @click="saveTags">
+            {{ tagSaving ? '保存中…' : '保存标签' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -961,11 +1344,48 @@ watch(isAdmin, (admin) => {
 .settings-list__name { @apply min-w-0 flex-1 truncate text-sm text-zinc-800 dark:text-zinc-200; }
 .settings-list__count { @apply shrink-0 text-xs text-zinc-400 dark:text-zinc-500; }
 
-/* ---- 标签拖拽排序 ---- */
+/* ---- 标签拖拽排序（vue-draggable-plus：ghost=落点占位，drag=被拖元素） ---- */
 .settings-list__handle { @apply shrink-0 cursor-grab select-none text-sm leading-none text-zinc-300 transition-colors hover:text-zinc-500 active:cursor-grabbing dark:text-zinc-600 dark:hover:text-zinc-400; }
 .settings-list__item--dragging { @apply opacity-40; }
 .settings-list__item--drop { @apply bg-green-50 ring-1 ring-inset ring-green-400 dark:bg-green-500/10 dark:ring-green-500; }
 .settings-list__item--busy { @apply pointer-events-none opacity-70; }
+
+/* ---- 菜谱管理：筛选 ---- */
+.manage-filter { @apply mt-3 flex flex-wrap items-center gap-2; }
+.manage-filter__kw { @apply w-44; }
+.manage-filter__tags { @apply flex flex-wrap items-center gap-1.5; }
+.manage-chip { @apply rounded-full border border-zinc-200 px-2.5 py-1 text-xs text-zinc-600 transition-colors hover:border-green-500 hover:text-green-600 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-green-500 dark:hover:text-green-400; }
+.manage-chip--active { @apply border-green-600 bg-green-50 font-medium text-green-700 dark:border-green-500 dark:bg-green-500/10 dark:text-green-400; }
+
+/* ---- 菜谱管理：表格 ---- */
+.manage-table__wrap { @apply mt-3 overflow-x-auto rounded-md border border-zinc-200 dark:border-zinc-800; }
+.manage-table { @apply w-full min-w-[880px] border-collapse text-sm; }
+.manage-table thead th { @apply whitespace-nowrap border-b border-zinc-200 bg-zinc-50 px-2 py-2 text-left text-xs font-medium text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400; }
+.manage-table__th--sortable { @apply cursor-pointer select-none hover:text-green-600 dark:hover:text-green-400; }
+.manage-table__mark { @apply text-[10px] text-green-600 dark:text-green-400; }
+.manage-table__col--handle { @apply w-8; }
+.manage-table__col--idx { @apply w-10; }
+.manage-table__col--cover { @apply w-20; }
+.manage-table__date { @apply whitespace-nowrap text-xs text-zinc-400 dark:text-zinc-500; }
+.manage-table__idx { @apply text-xs text-zinc-400 dark:text-zinc-500; }
+/* 单元格底色必须不透明：拖拽时被拖行会盖在其它行上，透明底会「透视」 */
+.manage-row > td { @apply bg-white px-2 py-2 align-middle dark:bg-zinc-950; }
+.manage-row--ghost > td { @apply bg-green-50 dark:bg-green-500/10; }
+.manage-row--drag { @apply shadow-lg; }
+.manage-row__handle { @apply cursor-grab select-none text-sm leading-none text-zinc-300 transition-colors hover:text-zinc-500 active:cursor-grabbing dark:text-zinc-600 dark:hover:text-zinc-400; }
+.manage-row__handle--off { @apply cursor-not-allowed opacity-40 hover:text-zinc-300 dark:hover:text-zinc-600; }
+.manage-row__cover { @apply h-10 w-16 rounded object-cover object-center; }
+.manage-row__cover--empty { @apply flex h-10 w-16 items-center justify-center bg-zinc-100 text-[10px] text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500; }
+.manage-row__title { @apply max-w-[14rem] truncate font-medium text-zinc-800 dark:text-zinc-200; }
+.manage-row__tags { @apply flex flex-wrap items-center gap-1; }
+.manage-tag { @apply rounded bg-zinc-100 px-1.5 py-0.5 text-[11px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300; }
+.manage-tag--empty { @apply text-zinc-400 dark:text-zinc-500; }
+.manage-tag__add { @apply flex size-5 items-center justify-center rounded border border-dashed border-zinc-300 text-zinc-500 transition-colors hover:border-green-500 hover:text-green-600 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-green-500 dark:hover:text-green-400; }
+
+/* ---- 快速打标签弹窗 ---- */
+.manage-tag-modal__name { @apply font-medium text-zinc-800 dark:text-zinc-200; }
+.manage-tag-picker { @apply mt-3 grid max-h-64 grid-cols-2 gap-1.5 overflow-y-auto; }
+.manage-tag-picker__item { @apply flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm text-zinc-700 transition-colors hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800; }
 
 /* ---- 用户管理 ---- */
 .user-row { @apply flex flex-col gap-2 px-3 py-3 sm:flex-row sm:items-center sm:gap-4; }

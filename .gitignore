@@ -32,3 +32,6 @@ main.exe~
 
 # GUI 测试截图（浏览器自测产物，不入库）
 gui-test-screenshots/
+
+# 沙箱 safe-delete 守卫留下的临时产物（_tmp_<pid>_<hash>，通常是空文件）
+_tmp_*

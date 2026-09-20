@@ -202,6 +202,13 @@ export interface Cookbook_api_recipe_v1_get_list_res {
 
   total?: number;
 }
+export interface Cookbook_api_recipe_v1_get_manage_list_res {
+  /**
+   * 菜谱列表（按手动顺序）
+   */
+
+  list?: Cookbook_internal_model_recipe_manage_item[];
+}
 export interface Cookbook_api_recipe_v1_get_one_res {
   /**
    * 食谱 id
@@ -274,6 +281,14 @@ export interface Cookbook_api_recipe_v1_get_one_res {
 
   tags?: Cookbook_internal_model_tag_item[];
 }
+export interface Cookbook_api_recipe_v1_reorder_req {
+  /**
+   * 全部未删除菜谱的完整 id 顺序（不重不漏）
+   */
+
+  ids: number[];
+}
+export type Cookbook_api_recipe_v1_reorder_res = object;
 export type Cookbook_api_recipe_v1_update_res = object;
 export interface Cookbook_api_scheduling_v1_create_req {
   /**
@@ -641,6 +656,68 @@ export interface Cookbook_internal_model_recipe_list_item {
    */
 
   tags?: Cookbook_internal_model_tag_item[];
+}
+export interface Cookbook_internal_model_recipe_manage_item {
+  /**
+   * 菜谱 id
+   */
+
+  id?: number;
+  /**
+   * 菜谱标题
+   */
+
+  title?: string;
+  /**
+   * 封面附件 id，0=无封面
+   */
+
+  coverAttachmentId?: number;
+  /**
+   * 封面图访问 URL，空=无封面
+   */
+
+  coverUrl?: string;
+  /**
+   * 菜谱标签列表
+   */
+
+  tags?: Cookbook_internal_model_tag_item[];
+  /**
+   * 难度：0=未填 1=简单 2=中等 3=较难
+   */
+
+  difficulty?: number;
+  /**
+   * 耗时(分钟)，0=未填
+   */
+
+  cookMinutes?: number;
+  /**
+   * 本菜谱总热量 kcal，0=未填
+   */
+
+  calories?: number;
+  /**
+   * 适合用餐时间位掩码：1=早餐 2=午餐 4=晚餐 8=加餐
+   */
+
+  mealMask?: number;
+  /**
+   * 手动排序位：0=未参与排序（按 id 倒序=最新在前）
+   */
+
+  sort?: number;
+  /**
+   * 创建时间 Unix 秒
+   */
+
+  createdAt?: number;
+  /**
+   * 更新时间 Unix 秒
+   */
+
+  updatedAt?: number;
 }
 export interface Cookbook_internal_model_recipe_step_item {
   /**

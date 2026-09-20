@@ -118,6 +118,7 @@ CREATE TABLE IF NOT EXISTS recipes (
     source              TEXT    NOT NULL DEFAULT 'manual' CHECK (source IN ('manual', 'ai', 'import')), -- 来源：manual=手写 ai=AI 生成 import=导入
     ai_model            TEXT    NOT NULL DEFAULT '',          -- 生成模型名，source=ai 时有值
     review_status       INTEGER NOT NULL DEFAULT 0 CHECK (review_status IN (0, 1)), -- AI 内容人工核对：0=未核对 1=已核对
+    sort                INTEGER NOT NULL DEFAULT 0,           -- 手动排序（设置页「菜谱管理」拖拽后按 1、2、3… 重写）；0=未参与排序，视为新菜谱置顶
     is_deleted          INTEGER NOT NULL DEFAULT 0,           -- 0=正常 1=已删除
     created_at          INTEGER NOT NULL DEFAULT 0,           -- 创建时间 Unix 秒
     updated_at          INTEGER NOT NULL DEFAULT 0            -- 更新时间 Unix 秒
@@ -126,6 +127,8 @@ CREATE INDEX IF NOT EXISTS idx_recipes_user   ON recipes (user_id, is_deleted); 
 CREATE INDEX IF NOT EXISTS idx_recipes_review ON recipes (review_status) WHERE review_status = 0; -- 待核对清单（PG 部分索引）
 -- 幂等删列：份量(人份)字段已从产品中移除（不展示、不参与任何逻辑），已存在的库同步删除
 ALTER TABLE recipes DROP COLUMN IF EXISTS servings;
+-- 幂等补列：手动排序位（首页菜谱墙与「菜谱管理」表格都按 sort ASC, id DESC 展示）
+ALTER TABLE recipes ADD COLUMN IF NOT EXISTS sort INTEGER NOT NULL DEFAULT 0;
 
 -- ----------------------------------------------------------------------------
 -- 表: tags 标签表（只建结构，不预置数据）

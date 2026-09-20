@@ -28,33 +28,27 @@ func New() *sFavorite {
 	return &sFavorite{}
 }
 
-// defaultFavoriteName 默认收藏夹名（无任何收藏夹时兜底创建）
+// defaultFavoriteName 默认收藏夹名
 const defaultFavoriteName = "我的收藏"
 
-// List 收藏夹列表；无任何夹时自动创建默认夹「我的收藏」；
+// EnsureDefaultFolder 确保该用户至少有一个收藏夹「我的收藏」（幂等）。
+// 在注册等「初始化时机」调用：LIST 是 GET，绝不能带写副作用（前端在弹窗/页面里
+// 反复调用 getList，旧实现每次无夹都插一行，且多用户下会把夹挂到 user_id=0 造成归属错乱）。
+// 用一条 INSERT ... WHERE NOT EXISTS 原子完成，天然免疫并发重复插入。
+func (s *sFavorite) EnsureDefaultFolder(ctx context.Context, userId int64) (err error) {
+	now := gtime.Timestamp()
+	_, err = dao.Favorites.DB().Exec(ctx, `
+INSERT INTO favorites (user_id, name, description, is_public, sort, is_deleted, created_at, updated_at)
+SELECT ?, ?, '', 0, 0, 0, ?, ?
+WHERE NOT EXISTS (
+    SELECT 1 FROM favorites WHERE user_id = ? AND is_deleted = 0
+)`, userId, defaultFavoriteName, now, now, userId)
+	return err
+}
+
+// List 收藏夹列表（纯读，无任何写副作用）；
 // recipeCount 用一条 GROUP BY 聚合填充
 func (s *sFavorite) List(ctx context.Context) (out []*model.FavoriteFolder, err error) {
-	count, err := dao.Favorites.Ctx(ctx).
-		Where(dao.Favorites.Columns().IsDeleted, 0).
-		Count()
-	if err != nil {
-		return nil, err
-	}
-	if count == 0 {
-		if _, err = dao.Favorites.Ctx(ctx).
-			Data(g.Map{
-				"user_id":   0,
-				"name":      defaultFavoriteName,
-				"is_public": 0,
-				"sort":      0,
-				"created_at": gtime.Timestamp(),
-				"updated_at": gtime.Timestamp(),
-			}).
-			Insert(); err != nil {
-			return nil, err
-		}
-	}
-
 	err = dao.Favorites.Ctx(ctx).
 		Where(dao.Favorites.Columns().IsDeleted, 0).
 		Order(dao.Favorites.Columns().Sort).Order(dao.Favorites.Columns().Id).

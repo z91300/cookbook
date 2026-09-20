@@ -60,7 +60,8 @@ internal/consts      全局常量
   - `create` —— 创建（`POST`）
   - `update` —— 全量修改（`PUT`）
   - `delete` —— 删除（`DELETE`）
-  - `reorder` —— 整体排序（`PUT /foos/sort`，提交完整 id 顺序；静态路径优先于 `{id}` 模糊规则，已在 `/tags/sort` 上实测可用）
+  - `reorder` —— 整体排序（`PUT /foos/sort`，提交完整 id 顺序；静态路径优先于 `{id}` 模糊规则，已在 `/tags/sort`、`/recipes/sort` 上实测可用）
+  - `getManageList` —— 后台管理态全量列表（不分页，如 `GET /recipes/manage`；同样受静态路径优先保护）
 - 全库 operationId 不得重复；它是 OpenAPI 的唯一操作标识（前端 worma 代码生成、mock 等依赖它）
 - 示例：
 
@@ -75,6 +76,13 @@ type GetReq struct {
 
 - **多选查询参数（同名重复键）**：列表接口的多选条件统一用 `?elements=火&elements=水` 写法（ofetch/axios 等客户端对数组的默认序列化）。注意 **GoFrame 原生只识别 `k[]=a&k[]=b`**，对同名重复键只保留最后一个值（`gstr.Parse` 语义），会造成多选静默退化为单选；已由 `internal/handler.MiddlewareQueryMultiValue` 在参数绑定前归一（在 `internal/cmd/cmd.go` 全局注册）。新增多选条件时无需额外处理，字段按 `[]string`/`[]uint` 定义即可，两种写法都可用。
 - **字段唯一定义点**：请求/响应字段与校验规则只写在 `internal/model/<领域>.go`；api 层组合嵌入 model 结构（只补 `g.Meta`），controller 只做组合转发，service 输入输出直接使用 model 结构。禁止在 api 层和 service 层各定义一遍字段。
+- **编辑接口的「可选字段」用指针语义**：标量字段一律定义成 `*string` / `*int` / `*int64`（GoFrame `gconv` 对缺省键留 nil、对传 `""`/`0` 给出非 nil 指针，前端正常发全量字段不受影响）。写入侧按 `nil=本次不修改、非 nil=显式写入（含清空）` 处理，否则 `summary`/封面/难度/热量这类字段一旦设过就再也清不掉。新建（Create）相反：所有列显式写入，零值即零值。
+- **多表写入必须同事务**：一次业务动作里若有「更新主表 + 重建关联表」，用 `dao.X.Transaction(ctx, func(ctx, tx) error {...})`（回调内继续用 `dao.X.Ctx(ctx)` 即自动落到该事务），中途失败要整体回滚，不留半更新。关联表批量插入用 `Data([]g.Map{...}).Insert()`（一次多值 INSERT），不要逐条循环插。
+- **删除主记录要清理引用**：`recipe.Delete` 为逻辑删除，同事务内硬删 `recipe_tags` / `favorite_items`，`schedulings` 行保留但置 `is_deleted=1`（历史可追溯、不再指向已删食谱）。
+- **列表查询用 Fields 白名单**：`recipe.List` / `ListByIds` 只取卡片列，不要 `SELECT *` 把 `ingredients`/`tools`/`steps` 三个 JSON 大列拉出来。用 `ScanAndCount(ptr, &total, true)` 时 Fields 走多列也不影响 total（内部回落 `COUNT(1)`）。
+- **GET 不写库**：读接口不得带写副作用（前端弹窗/页面会反复调用）。默认收藏夹「我的收藏」由 `favorite.EnsureDefaultFolder` 在**注册（初始化时机）**用一条 `INSERT ... SELECT ... WHERE NOT EXISTS` 原子创建（幂等、无并发重复插入窗口、归属用户正确），`favorite.List` 保持纯读。
+- **食谱手动排序（`recipes.sort`）**：`0 = 未参与排序`（等价「新菜谱置顶」），拖拽排序后由 `PUT /recipes/sort`（`recipe_reorder`）把全部菜谱的 `sort` 重写为连续的 `1..N`。展示顺序统一为 `ORDER BY sort ASC, id DESC`（首页 `recipe.List` 与设置页 `recipe.ManageList` 都按它，`ListByIds` 保持调用方给的收藏顺序）。与 `tag.Reorder` 同规矩：**必须提交全部未删除菜谱的完整顺序（不重不漏），否则整体拒绝**。新建菜谱不写 sort（默认 0）→ 仍保持「刚建的排最前」的既有观感。
+- **拖拽交互一律用 `vue-draggable-plus`**（`web/package.json` 依赖，SortableJS 的 Vue 封装），不要再手写 `draggable` + drag 事件——手写版在触屏上不可用、也没有自动滚动。统一配置 `:force-fallback="true"`（用指针事件驱动，表格行/移动端才可靠）+ `handle=".xxx__handle"` + `ghost-class`/`drag-class` 复用现有样式类；松手回调里 `@end` 提交「完整顺序」，失败回滚为服务端顺序。
 - **字段描述**：字段的对外描述用 `dc:"…"` 标签写在 model 字段上（与 Go `//` 注释文案保持一致）；GoFrame OpenAPI 只读 `dc`/`des`/`description` 标签，不读 Go 注释，注释不写 `dc` 则 swagger 无字段说明。
 - **分页**：入参嵌入 `model.PaginationInput`；响应用别名 `type FooListOutput = model.PageRes[FooItem]`。
 - **统一响应**：HTTP 出口信封 `model.StandardRes`（`{code, message, data}`），由 `internal/handler.MiddlewareResponse` 输出；错误码通过 `gerror`/`gcode` 携带。
@@ -146,6 +154,20 @@ type GetReq struct {
   的小 JPEG）则保留原格式。存量迁移命令 `go run ./cmd/migrate_webp`（dry-run，`--apply` 写库），已执行过。
   webp 编码用 `github.com/gen2brain/webp`（libwebp 转译纯 Go，无 CGo），解码用
   `golang.org/x/image/webp`。
+  **上传安全（禁止放松，见 `internal/logic/attachment/mime.go`）**：
+  - 类型只认**文件魔数**（`detectMime`：`net/http` 嗅探 + 自补 mp4 的 `ftyp`），
+    客户端 `Content-Type` 与扩展名都可能伪造，不作为判据；文件名扩展名按真实类型纠正
+    （`alignFileName`），存储名经 `sanitizeFileName` 剔除引号/控制字符（防响应头注入）。
+  - `inlineSafeMimes` 只放栅格图与视频。**`image/svg+xml`、`text/html`、`text/xml` 等一律不在白名单**
+    （可执行脚本），上传时即降级为 `kind=file` + `application/octet-stream`。
+  - 内容路由：白名单类型才 `Content-Disposition: inline`，其余一律 `attachment` + `application/octet-stream`，
+    且所有响应都带 `X-Content-Type-Options: nosniff`。判定在**读路径**（`GetContent` → `Inline`）复核，
+    历史库里客户端声明的 `image/svg+xml` 等老行同样按下载处置。
+    副作用：**SVG 附件不再能在 `<img>` 里显示**（防存储型 XSS 的代价），需要展示就转成栅格图。
+  - 单文件上限 `consts.MaxUploadBytes`(20MB)，读文件必须 `io.ReadFull`（单次 `Read` 不保证读满）；
+    同时 `internal/cmd/cmd.go` 必须设 `SetClientMaxBodySize(consts.MaxRequestBodyBytes)`——
+    GoFrame 默认请求体上限仅 8MB，不放开则 8~20MB 的文件在 multipart 解析阶段直接 500。
+  - `attachments.sha256` 记内容哈希，`Upload` 命中同哈希（未删除）即**秒传**复用已有附件，不重复落库。
 
 ## 前端（web/）
 - **API 客户端**：`web/app/api/` 由 `pnpm api:gen`（worma，配置见 `web/worma.config.ts`）从后端 `/api.json` 生成；`request.ts` 已做 StandardRes 信封拆包（code≠0 抛 `ApiError`）。生成文件除 `request.ts` 外勿手改。
@@ -154,6 +176,7 @@ type GetReq struct {
 - **devServer**：显式绑定 `127.0.0.1`（本机 DNS 常把 localhost 解析为 ::1 导致 127.0.0.1 打不开），不要移除该配置。
 - **分页列表**：直接复用 `app/composables/useInfiniteList.ts`（上拉无限加载，配合 `model.PageRes` 形状）。
 - **页面**：放 `web/app/pages/`，按 Nuxt 路由约定命名；通用展示组件放 `web/app/components/`。
+- **设置页（`pages/settings.vue`）**：页签按角色分叉——管理员 `菜谱管理 / 标签管理 / 用户管理 / 通用设置 / 关于`，普通用户与匿名只有 `通用设置 / 关于`（默认落地页 = 管理员落「菜谱管理」、其余落「通用设置」）。菜谱管理是 10 列宽表格，该页签下 `<main>` 用 `page`（max-w-6xl），其余页签用 `page--narrow`（max-w-3xl）。用法注意：`useBodyScrollLock` / `useModalBackClose` 会**立即求值**传入的谓词，写在目标 ref 声明之前会命中 TDZ 直接白屏（500），新增弹窗时把这两行放在 ref 声明之后。
 
 ## 启动与验证
 

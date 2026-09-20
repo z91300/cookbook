@@ -163,12 +163,12 @@ export { deleteFn as delete };
  * **RequestBody**
  * ```ts
  * type RequestBody = {
+ *   // 展示排序
+ *   sort?: number
  *   // 收藏夹名
  *   name: string
  *   // 收藏夹描述
  *   description?: string
- *   // 展示排序
- *   sort?: number
  * }
  * ```
  *
@@ -191,6 +191,11 @@ type updateConfig = {
   };
   body?: {
     /**
+     * 展示排序
+     */
+
+    sort?: number;
+    /**
      * 收藏夹名
      */
 
@@ -200,11 +205,6 @@ type updateConfig = {
      */
 
     description?: string;
-    /**
-     * 展示排序
-     */
-
-    sort?: number;
   };
 };
 

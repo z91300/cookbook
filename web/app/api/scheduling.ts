@@ -198,16 +198,16 @@ export { deleteFn as delete };
  * **RequestBody**
  * ```ts
  * type RequestBody = {
+ *   // 同槽位内排序
+ *   sort?: number
+ *   // 编排日期 YYYYMMDD
+ *   planDate: number
  *   // 用餐时段：1=早餐 2=午餐 4=晚餐 8=加餐
  *   meal: 1 | 2 | 4 | 8
  *   // 食谱 id
  *   recipeId: number
  *   // 编排备注
  *   note?: string
- *   // 同槽位内排序
- *   sort?: number
- *   // 编排日期 YYYYMMDD
- *   planDate: number
  * }
  * ```
  *
@@ -230,6 +230,16 @@ type updateConfig = {
   };
   body?: {
     /**
+     * 同槽位内排序
+     */
+
+    sort?: number;
+    /**
+     * 编排日期 YYYYMMDD
+     */
+
+    planDate: number;
+    /**
      * 用餐时段：1=早餐 2=午餐 4=晚餐 8=加餐
      */
 
@@ -244,16 +254,6 @@ type updateConfig = {
      */
 
     note?: string;
-    /**
-     * 同槽位内排序
-     */
-
-    sort?: number;
-    /**
-     * 编排日期 YYYYMMDD
-     */
-
-    planDate: number;
   };
 };
 

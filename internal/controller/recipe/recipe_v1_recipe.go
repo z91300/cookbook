@@ -39,3 +39,15 @@ func (c *ControllerV1) Create(ctx context.Context, req *v1.CreateReq) (res *v1.C
 	}
 	return &v1.CreateRes{Id: id}, nil
 }
+func (c *ControllerV1) GetManageList(ctx context.Context, req *v1.GetManageListReq) (res *v1.GetManageListRes, err error) {
+	out, err := service.Recipe().ManageList(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &v1.GetManageListRes{RecipeManageListOutput: *out}, nil
+}
+
+func (c *ControllerV1) Reorder(ctx context.Context, req *v1.ReorderReq) (res *v1.ReorderRes, err error) {
+	err = service.Recipe().Reorder(ctx, req.Ids)
+	return nil, err
+}

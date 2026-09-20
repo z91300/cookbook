@@ -184,6 +184,11 @@ func (s *sAuth) Register(ctx context.Context, in model.UserRegisterInput) (out *
 	if err != nil {
 		return nil, err
 	}
+	// 初始化该用户的默认收藏夹「我的收藏」（幂等）：
+	// 放在注册这种「初始化时机」，而不是收藏夹 LIST（GET）里做写操作
+	if err = service.Favorite().EnsureDefaultFolder(ctx, userId); err != nil {
+		return nil, err
+	}
 	pair, err := s.issueSession(ctx, userId)
 	if err != nil {
 		return nil, err

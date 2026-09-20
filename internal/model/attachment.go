@@ -20,4 +20,5 @@ type AttachmentContentOutput struct {
 	Content     []byte // 文件二进制内容
 	ContentType string // MIME 类型，用于响应头
 	FileName    string // 原始文件名，用于 Content-Disposition
+	Inline      bool   // 是否允许 inline 直出（白名单类型才为 true，否则按附件下载处置）
 }

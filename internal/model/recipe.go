@@ -64,21 +64,24 @@ type RecipeDetail struct {
 	Tags              []TagItem               `json:"tags"              dc:"菜谱标签列表"`
 }
 
-// RecipeUpdateInput 食谱编辑入参（全部字段可选，未传不更新；Steps/Ingredients 整体覆盖）
+// RecipeUpdateInput 食谱编辑入参。
+// 字段一律「指针语义」：null/不传 = 本次不修改；传 0 或空串 = 显式清空该字段
+// （否则 summary/tips/封面/难度/热量等一旦设置就再也清不掉）。
+// Steps/Ingredients/Tools 为整体覆盖：null=不改，[]=清空。
 type RecipeUpdateInput struct {
 	RecipeIdInput
-	Title             string                  `json:"title"               dc:"菜谱标题" v:"length:0,100#标题最长100"`
-	Summary           string                  `json:"summary"             dc:"一句话简介" v:"length:0,200#简介最长200"`
-	CoverAttachmentId int64                   `json:"coverAttachmentId"   dc:"封面附件 id，0=清除封面"`
+	Title             *string                 `json:"title"               dc:"菜谱标题，不传=不修改" v:"length:1,100#标题不能为空|标题最长100"`
+	Summary           *string                 `json:"summary"             dc:"一句话简介；不传=不修改，传空串=清空" v:"length:0,200#简介最长200"`
+	CoverAttachmentId *int64                  `json:"coverAttachmentId"   dc:"封面附件 id；不传=不修改，传 0=清除封面" v:"min:0#封面 id 不合法"`
 	Tips              *string                 `json:"tips"                dc:"注意事项；不传=不修改，传空串=清空" v:"length:0,500#注意事项最长500"`
-	Ingredients       []RecipeIngredientInput `json:"ingredients"         dc:"食材列表，整体覆盖"`
-	Tools             []string                `json:"tools"               dc:"工具列表，整体覆盖"`
-	TagIds            []int                   `json:"tagIds"              dc:"标签 id 列表（分类），整体覆盖；nil=不修改 []=清空"`
-	Steps             []RecipeStepItem        `json:"steps"               dc:"步骤列表，整体覆盖"`
-	MealMask          int                     `json:"mealMask"            dc:"用餐时间位掩码：1=早餐 2=午餐 4=晚餐 8=加餐；15=全部时段" v:"min:0|max:15#用餐时间不合法"`
-	Difficulty        int                     `json:"difficulty"          dc:"难度：0=未填 1=简单 2=中等 3=较难" v:"min:0|max:3#难度取值 0-3"`
-	CookMinutes       int                     `json:"cookMinutes"         dc:"耗时(分钟)，0=未填" v:"min:0#耗时不能为负"`
-	Calories          int                     `json:"calories"            dc:"每份热量 kcal，0=未填" v:"min:0#热量不能为负"`
+	Ingredients       []RecipeIngredientInput `json:"ingredients"         dc:"食材列表，整体覆盖；null=不修改 []=清空"`
+	Tools             []string                `json:"tools"               dc:"工具列表，整体覆盖；null=不修改 []=清空"`
+	TagIds            []int                   `json:"tagIds"              dc:"标签 id 列表（分类），整体覆盖；null=不修改 []=清空"`
+	Steps             []RecipeStepItem        `json:"steps"               dc:"步骤列表，整体覆盖；null=不修改 []=清空"`
+	MealMask          *int                    `json:"mealMask"            dc:"用餐时间位掩码：1=早餐 2=午餐 4=晚餐 8=加餐；不传=不修改，传 0=未填" v:"min:0|max:15#用餐时间不合法"`
+	Difficulty        *int                    `json:"difficulty"          dc:"难度：0=未填 1=简单 2=中等 3=较难；不传=不修改" v:"min:0|max:3#难度取值 0-3"`
+	CookMinutes       *int                    `json:"cookMinutes"         dc:"耗时(分钟)；不传=不修改，传 0=未填" v:"min:0#耗时不能为负"`
+	Calories          *int                    `json:"calories"            dc:"每份热量 kcal；不传=不修改，传 0=未填" v:"min:0#热量不能为负"`
 }
 
 // RecipeCreateInput 食谱新建入参（标题必填；列表字段整体写入）
@@ -113,3 +116,30 @@ type RecipeListItem struct {
 
 // RecipeListOutput 食谱列表响应
 type RecipeListOutput = PageRes[RecipeListItem]
+
+// RecipeManageItem 菜谱管理表格行（设置页「菜谱管理」；比卡片多出排序位与时间）
+type RecipeManageItem struct {
+	Id                int64     `json:"id"                dc:"菜谱 id"`
+	Title             string    `json:"title"             dc:"菜谱标题"`
+	CoverAttachmentId int64     `json:"coverAttachmentId" dc:"封面附件 id，0=无封面"`
+	CoverUrl          string    `json:"coverUrl"          dc:"封面图访问 URL，空=无封面"`
+	Tags              []TagItem `json:"tags"              dc:"菜谱标签列表"`
+	Difficulty        int       `json:"difficulty"        dc:"难度：0=未填 1=简单 2=中等 3=较难"`
+	CookMinutes       int       `json:"cookMinutes"       dc:"耗时(分钟)，0=未填"`
+	Calories          int       `json:"calories"          dc:"本菜谱总热量 kcal，0=未填"`
+	MealMask          int       `json:"mealMask"          dc:"适合用餐时间位掩码：1=早餐 2=午餐 4=晚餐 8=加餐"`
+	Sort              int       `json:"sort"              dc:"手动排序位：0=未参与排序（按 id 倒序=最新在前）"`
+	CreatedAt         int64     `json:"createdAt"         dc:"创建时间 Unix 秒"`
+	UpdatedAt         int64     `json:"updatedAt"         dc:"更新时间 Unix 秒"`
+}
+
+// RecipeManageListOutput 菜谱管理列表响应。
+// 全量返回、不分页：手动排序提交的是「全部菜谱的完整顺序」，分页会让顺序残缺。
+type RecipeManageListOutput struct {
+	List []RecipeManageItem `json:"list" dc:"菜谱列表（按手动顺序）"`
+}
+
+// RecipeReorderInput 菜谱手动排序入参（仅管理员）
+type RecipeReorderInput struct {
+	Ids []int64 `json:"ids" v:"required#排序 id 列表不能为空" dc:"全部未删除菜谱的完整 id 顺序（不重不漏）"`
+}

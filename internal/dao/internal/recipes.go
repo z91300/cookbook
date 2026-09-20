@@ -40,6 +40,7 @@ type RecipesColumns struct {
 	IsDeleted         string //
 	CreatedAt         string //
 	UpdatedAt         string //
+	Sort              string //
 }
 
 // recipesColumns holds the columns for the table recipes.
@@ -63,6 +64,7 @@ var recipesColumns = RecipesColumns{
 	IsDeleted:         "is_deleted",
 	CreatedAt:         "created_at",
 	UpdatedAt:         "updated_at",
+	Sort:              "sort",
 }
 
 // NewRecipesDao creates and returns a new DAO object for table data access.

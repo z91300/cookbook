@@ -30,4 +30,5 @@ type Recipes struct {
 	IsDeleted         any //
 	CreatedAt         any //
 	UpdatedAt         any //
+	Sort              any //
 }

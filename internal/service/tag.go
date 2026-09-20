@@ -21,7 +21,8 @@ type (
 		// Update 重命名标签：目标须存在，新名不得与其他标签重复；仅管理员可操作
 		Update(ctx context.Context, id int64, in model.TagSaveInput) (err error)
 		// Reorder 拖拽排序：按传入顺序把 sort 重写为 1、2、3…（越小越靠前）；仅管理员可操作
-		// 传入的 id 必须互不重复且都存在，否则整体不生效，避免半截顺序写进库
+		// 传入的 id 必须是当前全部标签的完整顺序（不重不漏）：否则会出现两个标签同 sort、
+		// 排序结果不确定，因此宁可整体拒绝也不写半截顺序
 		Reorder(ctx context.Context, ids []int64) error
 		// Delete 删除标签：事务内先清 recipe_tags 关联（即从菜谱移除该标签，菜谱保留）再删标签；
 		// 返回受影响菜谱数（使用中、未删除的）供前端提示；仅管理员可操作

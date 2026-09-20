@@ -12,7 +12,12 @@ import (
 
 type (
 	IFavorite interface {
-		// List 收藏夹列表；无任何夹时自动创建默认夹「我的收藏」；
+		// EnsureDefaultFolder 确保该用户至少有一个收藏夹「我的收藏」（幂等）。
+		// 在注册等「初始化时机」调用：LIST 是 GET，绝不能带写副作用（前端在弹窗/页面里
+		// 反复调用 getList，旧实现每次无夹都插一行，且多用户下会把夹挂到 user_id=0 造成归属错乱）。
+		// 用一条 INSERT ... WHERE NOT EXISTS 原子完成，天然免疫并发重复插入。
+		EnsureDefaultFolder(ctx context.Context, userId int64) (err error)
+		// List 收藏夹列表（纯读，无任何写副作用）；
 		// recipeCount 用一条 GROUP BY 聚合填充
 		List(ctx context.Context) (out []*model.FavoriteFolder, err error)
 		// Create 新建收藏夹

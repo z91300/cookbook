@@ -25,4 +25,5 @@ type Recipes struct {
 	IsDeleted         int    `json:"isDeleted"         orm:"is_deleted"          description:""` //
 	CreatedAt         int    `json:"createdAt"         orm:"created_at"          description:""` //
 	UpdatedAt         int    `json:"updatedAt"         orm:"updated_at"          description:""` //
+	Sort              int    `json:"sort"              orm:"sort"                description:""` //
 }

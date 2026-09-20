@@ -50,3 +50,18 @@ type CreateReq struct {
 type CreateRes struct {
 	Id int64 `json:"id" dc:"新食谱 id"`
 }
+
+// GetManageListReq 菜谱管理列表（设置页「菜谱管理」表格，全量 + 手动顺序；仅管理员）
+type GetManageListReq struct {
+	g.Meta `path:"/recipes/manage" tags:"Recipe管理" method:"get" summary:"菜谱管理列表（管理员）" operationId:"recipe_getManageList"`
+}
+type GetManageListRes struct {
+	model.RecipeManageListOutput
+}
+
+// ReorderReq 菜谱手动排序（提交全部菜谱的完整 id 顺序；静态路径优先于 /recipes/{id}）
+type ReorderReq struct {
+	g.Meta `path:"/recipes/sort" tags:"Recipe管理" method:"put" summary:"菜谱手动排序（管理员）" operationId:"recipe_reorder"`
+	model.RecipeReorderInput
+}
+type ReorderRes struct{}

@@ -224,7 +224,7 @@ echo "$GHCR_PAT" | docker login ghcr.io -u <github-user> --password-stdin
 
 （或者去 GitHub → Package 设置里把该包改成 public，就没这一步了。）
 
-服务器上 `/opt/zspace/docker-compose.yml` 的 `image:` 必须指向 CI 推送的标签
+服务器上 `/opt/zspace/vps/docker-compose.yaml` 的 `image:` 必须指向 CI 推送的标签
 （如 `ghcr.io/z91300/cookbook:latest`，或 §3-C 的 `:stable`）。首次需手动
 `docker compose up -d` 起一次，之后交给 CI。两点提示：
 
@@ -237,17 +237,17 @@ echo "$GHCR_PAT" | docker login ghcr.io -u <github-user> --password-stdin
 
 ```bash
 # 环境变量（脚本里最省事：设一次，后面所有 compose 子命令都生效）
-export COMPOSE_FILE=/opt/zspace/docker-compose.yml
+export COMPOSE_FILE=/opt/zspace/vps/docker-compose.yaml
 docker compose up -d --pull always --wait --wait-timeout 300
 
 # 或每次显式指定文件
-docker compose -f /opt/zspace/docker-compose.yml up -d --pull always --wait
+docker compose -f /opt/zspace/vps/docker-compose.yaml up -d --pull always --wait
 ```
 
 三个容易被担心的点，都有确定答案：
 
 - **项目目录**默认取第一个 `-f` / `COMPOSE_FILE` 文件所在目录，所以相对路径挂载、`.env` 都从
-  `/opt/zspace` 解析 —— 与 `cd` 进去执行一致。（想更保险可再加 `--project-directory /opt/zspace`。）
+  `/opt/zspace/vps` 解析 —— 与 `cd` 进去执行一致。（想更保险可再加 `--project-directory /opt/zspace/vps`。）
 - **项目名**取值优先级是 `-p` → `COMPOSE_PROJECT_NAME` → 文件顶层 `name:` → 项目目录名。
   本项目 compose 有顶层 `name: cookbook`，所以在任何目录执行都是同一个项目、同一批容器，
   **不会平白多起一套栈**。
@@ -294,7 +294,7 @@ docker compose up -d --pull always --wait --wait-timeout 300 cookbook
     chmod 600 ~/.ssh/id_ed25519
     ssh -o StrictHostKeyChecking=accept-new -p "${{ secrets.DEPLOY_PORT || 22 }}" \
       "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
-      'export COMPOSE_FILE=/opt/zspace/docker-compose.yml
+      'export COMPOSE_FILE=/opt/zspace/vps/docker-compose.yaml
        docker compose up -d --pull always --wait --wait-timeout 300'
 ```
 
@@ -373,7 +373,7 @@ docker compose pull && docker compose up -d --wait
 **第三步（可选进阶）**
 7. ✅ **已落地**：`.github/workflows/build.yml` 新增 `deploy` job —— 构建推送成功后 SSH 到
    `DEPLOY_HOST` 执行
-   `COMPOSE_FILE=/opt/zspace/docker-compose.yml docker compose up -d --pull always --wait --wait-timeout 300`
+   `COMPOSE_FILE=/opt/zspace/vps/docker-compose.yaml docker compose up -d --pull always --wait --wait-timeout 300`
    （不 `cd`、失败自动打日志）。待办只剩两件：GitHub 里填
    `DEPLOY_HOST / DEPLOY_USER / DEPLOY_SSH_KEY / DEPLOY_PORT`（见 §3-D），
    以及服务器上 `docker login ghcr.io`（私有包必需）。

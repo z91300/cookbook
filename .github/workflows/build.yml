@@ -89,7 +89,7 @@ jobs:
   #   1. 四个 Secret 要加到 **Repository secrets**（Settings → Secrets and variables →
   #      Actions → Secrets → Repository secrets）。只加到 Environment secrets 而不在本 job
   #      声明 environment: 的话，job 读不到，会报 drone-ssh 那句含糊的 "missing server host"；
-  #   2. 服务器 /opt/zspace/docker-compose.yml 的 image 指向本仓库推送的镜像；
+  #   2. 服务器 /opt/zspace/vps/docker-compose.yaml 的 image 指向本仓库推送的镜像；
   #   3. 镜像为私有包时，服务器需已 `docker login ghcr.io`（PAT 具备 read:packages）。
   # 只想到发版才部署：把下面的 if 改成 startsWith(github.ref, 'refs/tags/v')
   # 注意：这里刻意不做 `docker image prune` —— 旧镜像要留着回滚。
